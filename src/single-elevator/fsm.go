@@ -1,36 +1,92 @@
-package fsm
+package single_elevator
 
-func FSM_init() {
-	// set state to idle
+import(
+	"project/single-elevator/elevio"
+	"fmt"
+)
 
-	// go to defined floor
+func FSM_NewOrdersAssigned(elevator *Elevator_t){
+	switch(elevator.behaviour){
+	case DOOR_OPEN,MOVING:
+		//Do nothing
+	case IDLE:
+		pair := Requests_chooseDirection(*elevator)
+		elevator.direction = pair.direction
+		elevator.behaviour = pair.behaviour
+
+		switch(elevator.behaviour){
+		case DOOR_OPEN:
+			elevio.SetDoorOpenLamp(true)
+			Timer_start()
+			fmt.Println("Order taken")
+			//Clear orders
+			
+			
+		case MOVING:
+			elevio.SetMotorDirection(direction_converter(elevator.direction))
+
+		case IDLE:
+			//do nothing
+		}
+	}
+	
+
+
 }
 
-func FSM_arrive_floor() {
-	// if order on floor
-	// set state to door open
-	// stop motor
-	// open the door
-	// inform order is taken
+func elevator_init(drv_floors <-chan int) Elevator_t {
+	elevio.SetMotorDirection(elevio.MD_Down)
+	current_floor := <-drv_floors
+	elevio.SetMotorDirection(elevio.MD_Stop)
 
-	// if no order in direction (redundant)
-	// print OMG!!!
-	// set state to idle
-	// stop motor
-
-	// else
-	// continue moving
+	return Elevator_t{floor: current_floor, direction: DIR_STOP, requests: [N_FLOORS][N_BUTTONS]bool{}, behaviour: IDLE}
 }
 
-func FSM_close_door() {
-	// set state to idle
+func FSM_onFloorArrival(elevator *Elevator_t, newFloor int){
+	elevator.floor = newFloor
 
-	// close door
+	elevio.SetFloorIndicator(elevator.floor)
+
+	if elevator.behaviour == MOVING {
+		if(Requests_shouldStop(*elevator)){
+			elevio.SetMotorDirection(elevio.MD_Stop)
+			elevio.SetDoorOpenLamp(true)
+			fmt.Println("order taken")
+
+			Timer_start()
+
+			elevator.behaviour = DOOR_OPEN
+		}
+	}
 }
 
-func FSM_start_moving() {
-	// set state to moving
 
-	// run algo for choose dir
-	// run motor
+func FSM_onDoorTimeout(elevator *Elevator_t){
+	if elevator.behaviour == DOOR_OPEN {
+		pair := Requests_chooseDirection(*elevator)
+		elevator.direction = pair.direction
+		elevator.behaviour = pair.behaviour
+
+		switch(elevator.behaviour){
+		case DOOR_OPEN:
+			Timer_start()
+			fmt.Println("State door open after door open")
+		case MOVING, IDLE:
+			elevio.SetDoorOpenLamp(false)
+			elevio.SetMotorDirection(direction_converter(elevator.direction))
+		}
+	}
+}
+
+
+func direction_converter(dir Direction_t) elevio.MotorDirection {
+	switch(dir){
+	case DIR_UP:
+		return elevio.MD_Up
+	case DIR_DOWN:
+		return elevio.MD_Down
+	case DIR_STOP:
+		return elevio.MD_Stop
+	}
+	return elevio.MD_Stop
 }

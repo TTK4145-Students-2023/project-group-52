@@ -1,11 +1,28 @@
 package main
 
 import (
-	"project/single-elevator/elevio"
-	"fmt"
+	//"project/single-elevator/elevio"
+	elevator "project/single-elevator"
 )
 
 func main() {
+	requests_chan := make(chan [elevator.N_FLOORS][elevator.N_BUTTONS]bool)
+	go elevator.Run_elevator(requests_chan)
+	requests_chan <- [elevator.N_FLOORS][elevator.N_BUTTONS]bool{
+		{false, false, false},
+		{false, false, true},
+		{false, false, true},
+		{false, false, true},
+	}
+
+
+	//elevator.Run_elevator(requests_chan)
+	for{
+
+	}
+}
+
+/* func main() {
 
 	numFloors := 4
 
@@ -56,4 +73,4 @@ func main() {
 			}
 		}
 	}
-}
+} */
