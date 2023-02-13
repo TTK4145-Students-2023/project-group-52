@@ -4,16 +4,39 @@ import (
 	"time"
 )
 
-var timer_start = make(chan bool)
+var timer_control = make(chan bool)
 
 func Timer_main(timer_timeout chan<- bool){
+	counter := 0
+	counting := false
 	for {
-		<- timer_start
-		time.Sleep(3*time.Second)
-		timer_timeout <- true
+		select {
+		case control := <- timer_control:
+			if control {
+				counting = true
+			} else {
+				counting = false
+				counter = 0
+			}
+		default:
+			if counter == 3000 {
+				counter = 0
+				counting = false
+				timer_timeout <- true
+			}
+			
+			if counting {
+				counter++
+				time.Sleep(time.Millisecond)
+			}
+		}
 	}
 }
 
 func Timer_start(){
-	timer_start <- true
+	timer_control <- true
+}
+
+func Timer_kill(){
+	timer_control <- false
 }

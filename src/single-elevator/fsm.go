@@ -29,8 +29,10 @@ func FSM_onFloorArrival(elevator *Elevator_t, newFloor int){
 			// clear request in elevator.requests
 			// send request completed to orders module
 			fmt.Println("order taken")
-
-			Timer_start()
+			
+			if !elevio.GetObstruction(){
+				Timer_start()
+			}
 
 			elevator.behaviour = DOOR_OPEN
 		}
@@ -76,6 +78,16 @@ func FSM_onDoorTimeout(elevator *Elevator_t){
 		case MOVING, IDLE:
 			elevio.SetDoorOpenLamp(false)
 			elevio.SetMotorDirection(direction_converter(elevator.direction))
+		}
+	}
+}
+
+func FSM_obstructionTrigger(elevator *Elevator_t, isObstructed bool){
+	if elevator.behaviour == DOOR_OPEN {
+		if isObstructed {
+			Timer_kill()
+		} else {
+			Timer_start()
 		}
 	}
 }

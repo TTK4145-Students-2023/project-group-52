@@ -155,10 +155,6 @@ func GetObstruction() bool {
 	return toBool(a[1])
 }
 
-
-
-
-
 func read(in [4]byte) [4]byte {
 	_mtx.Lock()
 	defer _mtx.Unlock()

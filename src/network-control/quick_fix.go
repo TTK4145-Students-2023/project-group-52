@@ -16,6 +16,7 @@ func Quick_fix(requests_chan chan<-[elev.N_FLOORS][elev.N_BUTTONS]bool){
 		case btn := <-drv_buttons:
 			requests[btn.Floor][btn.Button] = true
 			requests_chan <- requests
+			requests[btn.Floor][btn.Button] = false
 		}
 	}
 }

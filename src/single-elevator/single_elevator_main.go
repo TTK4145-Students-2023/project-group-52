@@ -24,15 +24,15 @@ func Run_elevator(requests_chan <-chan [N_FLOORS][N_BUTTONS]bool) {
 		case requests := <-requests_chan:
 			elevator.requests = requests
 			FSM_NewOrdersAssigned(&elevator)
-
 		case newFloor := <-drv_floors:
 			ElevatorPrint(elevator)
 			fmt.Println("New floor: ", newFloor)
 			FSM_onFloorArrival(&elevator, newFloor)
 		case <-timer_timeout:
 			FSM_onDoorTimeout(&elevator)
-			fmt.Println("close door")
 			ElevatorPrint(elevator)
+		case isObstructed := <- drv_obstr:
+			FSM_obstructionTrigger(&elevator, isObstructed)
 		}
 	}
 }
