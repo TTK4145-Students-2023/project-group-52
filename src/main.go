@@ -3,21 +3,24 @@ package main
 import (
 	//"project/single-elevator/elevio"
 	elevator "project/single-elevator"
+	nc "project/network-control"
+
 )
 
 func main() {
 	requests_chan := make(chan [elevator.N_FLOORS][elevator.N_BUTTONS]bool)
 	go elevator.Run_elevator(requests_chan)
-	requests_chan <- [elevator.N_FLOORS][elevator.N_BUTTONS]bool{
-		{false, false, false},
-		{false, false, true},
-		{false, false, true},
-		{false, false, true},
-	}
+	go nc.Quick_fix(requests_chan)
+	
+
+
+
+
+
 
 
 	//elevator.Run_elevator(requests_chan)
-	for{
+	for {
 
 	}
 }
@@ -31,12 +34,7 @@ func main() {
 	var d elevio.MotorDirection = elevio.MD_Up
 	//elevio.SetMotorDirection(d)
 
-	drv_buttons := make(chan elevio.ButtonEvent)
-	drv_floors := make(chan int)
-	drv_obstr := make(chan bool)
-	drv_stop := make(chan bool)
-
-	go elevio.PollButtons(drv_buttons)
+	
 	go elevio.PollFloorSensor(drv_floors)
 	go elevio.PollObstructionSwitch(drv_obstr)
 	go elevio.PollStopButton(drv_stop)

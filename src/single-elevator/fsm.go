@@ -5,6 +5,38 @@ import(
 	"fmt"
 )
 
+func elevator_init(drv_floors <-chan int) Elevator_t {
+	elevio.SetDoorOpenLamp(false)
+
+	elevio.SetMotorDirection(elevio.MD_Down)
+	current_floor := <-drv_floors
+	elevio.SetMotorDirection(elevio.MD_Stop)
+
+	elevio.SetFloorIndicator(current_floor)
+
+	return Elevator_t{floor: current_floor, direction: DIR_STOP, requests: [N_FLOORS][N_BUTTONS]bool{}, behaviour: IDLE}
+}
+
+func FSM_onFloorArrival(elevator *Elevator_t, newFloor int){
+	elevator.floor = newFloor
+
+	elevio.SetFloorIndicator(elevator.floor)
+
+	if elevator.behaviour == MOVING {
+		if(Requests_shouldStop(*elevator)){
+			elevio.SetMotorDirection(elevio.MD_Stop)
+			elevio.SetDoorOpenLamp(true)
+			// clear request in elevator.requests
+			// send request completed to orders module
+			fmt.Println("order taken")
+
+			Timer_start()
+
+			elevator.behaviour = DOOR_OPEN
+		}
+	}
+}
+
 func FSM_NewOrdersAssigned(elevator *Elevator_t){
 	switch(elevator.behaviour){
 	case DOOR_OPEN,MOVING:
@@ -29,37 +61,7 @@ func FSM_NewOrdersAssigned(elevator *Elevator_t){
 			//do nothing
 		}
 	}
-	
-
-
 }
-
-func elevator_init(drv_floors <-chan int) Elevator_t {
-	elevio.SetMotorDirection(elevio.MD_Down)
-	current_floor := <-drv_floors
-	elevio.SetMotorDirection(elevio.MD_Stop)
-
-	return Elevator_t{floor: current_floor, direction: DIR_STOP, requests: [N_FLOORS][N_BUTTONS]bool{}, behaviour: IDLE}
-}
-
-func FSM_onFloorArrival(elevator *Elevator_t, newFloor int){
-	elevator.floor = newFloor
-
-	elevio.SetFloorIndicator(elevator.floor)
-
-	if elevator.behaviour == MOVING {
-		if(Requests_shouldStop(*elevator)){
-			elevio.SetMotorDirection(elevio.MD_Stop)
-			elevio.SetDoorOpenLamp(true)
-			fmt.Println("order taken")
-
-			Timer_start()
-
-			elevator.behaviour = DOOR_OPEN
-		}
-	}
-}
-
 
 func FSM_onDoorTimeout(elevator *Elevator_t){
 	if elevator.behaviour == DOOR_OPEN {
