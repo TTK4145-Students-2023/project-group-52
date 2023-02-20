@@ -8,6 +8,12 @@ import(
 func elevator_init(drv_floors <-chan int) Elevator_t {
 	elevio.SetDoorOpenLamp(false)
 
+	for f := 0; f < N_FLOORS; f++ {
+		for b := elevio.ButtonType(0); b < N_BUTTONS; b++ {
+			elevio.SetButtonLamp(b,f,false)
+		}
+	}
+
 	elevio.SetMotorDirection(elevio.MD_Down)
 	current_floor := <-drv_floors
 	elevio.SetMotorDirection(elevio.MD_Stop)
@@ -17,7 +23,7 @@ func elevator_init(drv_floors <-chan int) Elevator_t {
 	return Elevator_t{floor: current_floor, direction: DIR_STOP, requests: [N_FLOORS][N_BUTTONS]bool{}, behaviour: IDLE}
 }
 
-func FSM_onFloorArrival(elevator *Elevator_t, newFloor int){
+func FSM_onFloorArrival(elevator *Elevator_t, newFloor int, completed_request_chan chan<- elevio.ButtonEvent){
 	elevator.floor = newFloor
 
 	elevio.SetFloorIndicator(elevator.floor)
@@ -26,20 +32,32 @@ func FSM_onFloorArrival(elevator *Elevator_t, newFloor int){
 		if(Requests_shouldStop(*elevator)){
 			elevio.SetMotorDirection(elevio.MD_Stop)
 			elevio.SetDoorOpenLamp(true)
-			// clear request in elevator.requests
-			// send request completed to orders module
-			fmt.Println("order taken")
+			
+			elevator.behaviour = DOOR_OPEN
 			
 			if !elevio.GetObstruction(){
 				Timer_start()
 			}
 
-			elevator.behaviour = DOOR_OPEN
+			if Request_shouldClearCab(*elevator) {
+				elevator.requests[elevator.floor][elevio.BT_Cab] = false
+				completed_request_chan <- elevio.ButtonEvent{Floor: elevator.floor, Button: elevio.BT_Cab}
+			}
+
+			if Request_shouldClearUp(*elevator) {
+				elevator.requests[elevator.floor][elevio.BT_HallUp] = false
+				completed_request_chan <- elevio.ButtonEvent{Floor: elevator.floor, Button: elevio.BT_HallUp}
+			}
+
+			if Request_shouldClearDown(*elevator) {
+				elevator.requests[elevator.floor][elevio.BT_HallDown] = false
+				completed_request_chan <- elevio.ButtonEvent{Floor: elevator.floor, Button: elevio.BT_HallDown}
+			}			
 		}
 	}
 }
 
-func FSM_NewOrdersAssigned(elevator *Elevator_t){
+func FSM_NewOrdersAssigned(elevator *Elevator_t, completed_request_chan chan<- elevio.ButtonEvent){
 	switch(elevator.behaviour){
 	case DOOR_OPEN,MOVING:
 		//Do nothing
@@ -52,9 +70,21 @@ func FSM_NewOrdersAssigned(elevator *Elevator_t){
 		case DOOR_OPEN:
 			elevio.SetDoorOpenLamp(true)
 			Timer_start()
-			fmt.Println("Order taken")
-			//Clear orders
-			
+
+			if Request_shouldClearCab(*elevator) {
+				elevator.requests[elevator.floor][elevio.BT_Cab] = false
+				completed_request_chan <- elevio.ButtonEvent{Floor: elevator.floor, Button: elevio.BT_Cab}
+			}
+
+			if Request_shouldClearUp(*elevator) {
+				elevator.requests[elevator.floor][elevio.BT_HallUp] = false
+				completed_request_chan <- elevio.ButtonEvent{Floor: elevator.floor, Button: elevio.BT_HallUp}
+			}
+
+			if Request_shouldClearDown(*elevator) {
+				elevator.requests[elevator.floor][elevio.BT_HallDown] = false
+				completed_request_chan <- elevio.ButtonEvent{Floor: elevator.floor, Button: elevio.BT_HallDown}
+			}				
 			
 		case MOVING:
 			elevio.SetMotorDirection(direction_converter(elevator.direction))

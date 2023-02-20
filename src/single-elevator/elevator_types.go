@@ -17,13 +17,6 @@ const (
 	DIR_DOWN
 )
 
-type Button_t int 
-const (
-    B_HallUp Button_t = iota
-    B_HallDown
-    B_Cab
-)
-
 type Elevator_t struct {
 	floor     int
 	direction Direction_t

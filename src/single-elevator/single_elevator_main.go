@@ -5,7 +5,10 @@ import (
 	"project/single-elevator/elevio"
 )
 
-func Run_elevator(requests_chan <-chan [N_FLOORS][N_BUTTONS]bool) {
+func Run_elevator(
+	requests_chan <-chan [N_FLOORS][N_BUTTONS]bool,
+	completed_request_chan chan<- elevio.ButtonEvent,
+) {
 	elevio.Init("localhost:15657", N_FLOORS)
 
 	drv_floors := make(chan int)
@@ -23,15 +26,15 @@ func Run_elevator(requests_chan <-chan [N_FLOORS][N_BUTTONS]bool) {
 		select {
 		case requests := <-requests_chan:
 			elevator.requests = requests
-			FSM_NewOrdersAssigned(&elevator)
+			FSM_NewOrdersAssigned(&elevator, completed_request_chan)
 		case newFloor := <-drv_floors:
 			ElevatorPrint(elevator)
 			fmt.Println("New floor: ", newFloor)
-			FSM_onFloorArrival(&elevator, newFloor)
+			FSM_onFloorArrival(&elevator, newFloor, completed_request_chan)
 		case <-timer_timeout:
 			FSM_onDoorTimeout(&elevator)
 			ElevatorPrint(elevator)
-		case isObstructed := <- drv_obstr:
+		case isObstructed := <-drv_obstr:
 			FSM_obstructionTrigger(&elevator, isObstructed)
 		}
 	}

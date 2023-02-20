@@ -1,5 +1,9 @@
 package single_elevator
 
+import "project/single-elevator/elevio"
+
+// CAN WE BOIL THIS???
+
 func requests_above(e Elevator_t) bool {
 	for f := e.floor+1; f < N_FLOORS; f++ {
 		for btn := 0; btn < N_BUTTONS; btn++ {
@@ -70,10 +74,47 @@ func Requests_chooseDirection(e Elevator_t) DirectionBehaviourPair {
 func Requests_shouldStop(e Elevator_t) bool {
 	switch(e.direction){
 	case DIR_DOWN:
-		return e.requests[e.floor][B_HallDown] || e.requests[e.floor][B_Cab] || !requests_below(e)
+		return e.requests[e.floor][elevio.BT_HallDown] || e.requests[e.floor][elevio.BT_Cab] || !requests_below(e)
 	case DIR_UP:
-		return e.requests[e.floor][B_HallUp] || e.requests[e.floor][B_Cab] || !requests_above(e)
+		return e.requests[e.floor][elevio.BT_HallUp] || e.requests[e.floor][elevio.BT_Cab] || !requests_above(e)
 	}
 
 	return true
 }
+
+func Request_shouldClearCab(e Elevator_t) bool {
+	return e.requests[e.floor][elevio.BT_Cab]
+}
+
+func Request_shouldClearUp(e Elevator_t) bool {
+	if !e.requests[e.floor][elevio.BT_HallUp] {
+		return false 
+	}
+
+	switch(e.direction){
+	case DIR_UP, DIR_STOP:
+		return true
+	case DIR_DOWN:
+		return !requests_below(e) && !e.requests[e.floor][elevio.BT_HallDown]
+	}
+
+	return false
+}
+
+
+func Request_shouldClearDown(e Elevator_t) bool {
+	if !e.requests[e.floor][elevio.BT_HallDown] {
+		return false 
+	}
+
+	switch(e.direction){
+	case DIR_DOWN, DIR_STOP:
+		return true
+	case DIR_UP:
+		return !requests_above(e) && !e.requests[e.floor][elevio.BT_HallUp]
+	}
+
+	return false
+}
+
+
