@@ -59,8 +59,27 @@ func FSM_onFloorArrival(elevator *Elevator_t, newFloor int, completed_request_ch
 
 func FSM_NewOrdersAssigned(elevator *Elevator_t, completed_request_chan chan<- elevio.ButtonEvent){
 	switch(elevator.behaviour){
-	case DOOR_OPEN,MOVING:
-		//Do nothing
+	case MOVING:
+		// do nothing
+	case DOOR_OPEN:
+		if Request_shouldClearCab(*elevator) {
+			Timer_start()
+			elevator.requests[elevator.floor][elevio.BT_Cab] = false
+			completed_request_chan <- elevio.ButtonEvent{Floor: elevator.floor, Button: elevio.BT_Cab}
+		}
+
+		if Request_shouldClearUp(*elevator) {
+			Timer_start()
+			elevator.requests[elevator.floor][elevio.BT_HallUp] = false
+			completed_request_chan <- elevio.ButtonEvent{Floor: elevator.floor, Button: elevio.BT_HallUp}
+		}
+
+		if Request_shouldClearDown(*elevator) {
+			Timer_start()
+			elevator.requests[elevator.floor][elevio.BT_HallDown] = false
+			completed_request_chan <- elevio.ButtonEvent{Floor: elevator.floor, Button: elevio.BT_HallDown}
+		}
+
 	case IDLE:
 		pair := Requests_chooseDirection(*elevator)
 		elevator.direction = pair.direction

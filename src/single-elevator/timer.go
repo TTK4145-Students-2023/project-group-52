@@ -14,6 +14,7 @@ func Timer_main(timer_timeout chan<- bool){
 		case control := <- timer_control:
 			if control {
 				counting = true
+				counter = 0
 			} else {
 				counting = false
 				counter = 0
