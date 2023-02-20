@@ -2,7 +2,7 @@ package single_elevator
 
 import(
 	"project/single-elevator/elevio"
-	"fmt"
+	//"fmt"
 )
 
 func elevator_init(drv_floors <-chan int) Elevator_t {
@@ -39,20 +39,9 @@ func FSM_onFloorArrival(elevator *Elevator_t, newFloor int, completed_request_ch
 				Timer_start()
 			}
 
-			if Request_shouldClearCab(*elevator) {
-				elevator.requests[elevator.floor][elevio.BT_Cab] = false
-				completed_request_chan <- elevio.ButtonEvent{Floor: elevator.floor, Button: elevio.BT_Cab}
-			}
-
-			if Request_shouldClearUp(*elevator) {
-				elevator.requests[elevator.floor][elevio.BT_HallUp] = false
-				completed_request_chan <- elevio.ButtonEvent{Floor: elevator.floor, Button: elevio.BT_HallUp}
-			}
-
-			if Request_shouldClearDown(*elevator) {
-				elevator.requests[elevator.floor][elevio.BT_HallDown] = false
-				completed_request_chan <- elevio.ButtonEvent{Floor: elevator.floor, Button: elevio.BT_HallDown}
-			}			
+			if clearOrdersIfNeeded(elevator, completed_request_chan) {
+				println(1)
+			}		
 		}
 	}
 }
@@ -62,47 +51,29 @@ func FSM_NewOrdersAssigned(elevator *Elevator_t, completed_request_chan chan<- e
 	case MOVING:
 		// do nothing
 	case DOOR_OPEN:
-		if Request_shouldClearCab(*elevator) {
-			Timer_start()
-			elevator.requests[elevator.floor][elevio.BT_Cab] = false
-			completed_request_chan <- elevio.ButtonEvent{Floor: elevator.floor, Button: elevio.BT_Cab}
-		}
-
-		if Request_shouldClearUp(*elevator) {
-			Timer_start()
-			elevator.requests[elevator.floor][elevio.BT_HallUp] = false
-			completed_request_chan <- elevio.ButtonEvent{Floor: elevator.floor, Button: elevio.BT_HallUp}
-		}
-
-		if Request_shouldClearDown(*elevator) {
-			Timer_start()
-			elevator.requests[elevator.floor][elevio.BT_HallDown] = false
-			completed_request_chan <- elevio.ButtonEvent{Floor: elevator.floor, Button: elevio.BT_HallDown}
+		if clearOrdersIfNeeded(elevator, completed_request_chan) {
+			println(2)
+			if !elevio.GetObstruction(){
+				Timer_start()
+			}
 		}
 
 	case IDLE:
 		pair := Requests_chooseDirection(*elevator)
 		elevator.direction = pair.direction
 		elevator.behaviour = pair.behaviour
+		ElevatorPrint(*elevator)
+
 
 		switch(elevator.behaviour){
 		case DOOR_OPEN:
 			elevio.SetDoorOpenLamp(true)
-			Timer_start()
-
-			if Request_shouldClearCab(*elevator) {
-				elevator.requests[elevator.floor][elevio.BT_Cab] = false
-				completed_request_chan <- elevio.ButtonEvent{Floor: elevator.floor, Button: elevio.BT_Cab}
+			if !elevio.GetObstruction(){
+				Timer_start()
 			}
 
-			if Request_shouldClearUp(*elevator) {
-				elevator.requests[elevator.floor][elevio.BT_HallUp] = false
-				completed_request_chan <- elevio.ButtonEvent{Floor: elevator.floor, Button: elevio.BT_HallUp}
-			}
-
-			if Request_shouldClearDown(*elevator) {
-				elevator.requests[elevator.floor][elevio.BT_HallDown] = false
-				completed_request_chan <- elevio.ButtonEvent{Floor: elevator.floor, Button: elevio.BT_HallDown}
+			if clearOrdersIfNeeded(elevator, completed_request_chan) {
+				println(3)
 			}				
 			
 		case MOVING:
@@ -114,7 +85,7 @@ func FSM_NewOrdersAssigned(elevator *Elevator_t, completed_request_chan chan<- e
 	}
 }
 
-func FSM_onDoorTimeout(elevator *Elevator_t){
+func FSM_onDoorTimeout(elevator *Elevator_t, completed_request_chan chan<- elevio.ButtonEvent){
 	if elevator.behaviour == DOOR_OPEN {
 		pair := Requests_chooseDirection(*elevator)
 		elevator.direction = pair.direction
@@ -122,8 +93,12 @@ func FSM_onDoorTimeout(elevator *Elevator_t){
 
 		switch(elevator.behaviour){
 		case DOOR_OPEN:
-			Timer_start()
-			fmt.Println("State door open after door open")
+			if !elevio.GetObstruction(){
+				Timer_start()
+			}
+			if clearOrdersIfNeeded(elevator, completed_request_chan) {
+				println(4)
+			}	
 		case MOVING, IDLE:
 			elevio.SetDoorOpenLamp(false)
 			elevio.SetMotorDirection(direction_converter(elevator.direction))
@@ -141,6 +116,29 @@ func FSM_obstructionTrigger(elevator *Elevator_t, isObstructed bool){
 	}
 }
 
+func clearOrdersIfNeeded(elevator * Elevator_t, completed_request_chan chan<- elevio.ButtonEvent) bool {
+	ordersCleared := false
+
+	if Request_shouldClearCab(*elevator) {
+		ordersCleared = true
+		elevator.requests[elevator.floor][elevio.BT_Cab] = false
+		completed_request_chan <- elevio.ButtonEvent{Floor: elevator.floor, Button: elevio.BT_Cab}
+	}
+
+	if Request_shouldClearUp(*elevator) {
+		ordersCleared = true
+		elevator.requests[elevator.floor][elevio.BT_HallUp] = false
+		// BUG: PROGRAM HALTS HERE WHEN ON A FLOOR AND UP AND DOWN BUTTON PRESSED AT THE SAME TIME ish
+		completed_request_chan <- elevio.ButtonEvent{Floor: elevator.floor, Button: elevio.BT_HallUp}
+	} else if Request_shouldClearDown(*elevator) {
+		ordersCleared = true
+		elevator.requests[elevator.floor][elevio.BT_HallDown] = false
+		completed_request_chan <- elevio.ButtonEvent{Floor: elevator.floor, Button: elevio.BT_HallDown}
+	}
+
+	return ordersCleared
+}
+
 
 func direction_converter(dir Direction_t) elevio.MotorDirection {
 	switch(dir){
@@ -153,3 +151,4 @@ func direction_converter(dir Direction_t) elevio.MotorDirection {
 	}
 	return elevio.MD_Stop
 }
+

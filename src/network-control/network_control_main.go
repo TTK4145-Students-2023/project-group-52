@@ -86,5 +86,7 @@ func RunNetworkControl(
 				elevio.SetButtonLamp(btn.Button,btn.Floor,false)
 			}
 		}
+		//case: mottar melding fra andre noder
+		//gå gjennom alle knappene og kjør FSM på dem
 	}
 }

@@ -25,6 +25,7 @@ func Run_elevator(
 	for {
 		select {
 		case requests := <-requests_chan:
+			ElevatorPrint(elevator)
 			elevator.requests = requests
 			FSM_NewOrdersAssigned(&elevator, completed_request_chan)
 		case newFloor := <-drv_floors:
@@ -32,7 +33,7 @@ func Run_elevator(
 			fmt.Println("New floor: ", newFloor)
 			FSM_onFloorArrival(&elevator, newFloor, completed_request_chan)
 		case <-timer_timeout:
-			FSM_onDoorTimeout(&elevator)
+			FSM_onDoorTimeout(&elevator, completed_request_chan)
 			ElevatorPrint(elevator)
 		case isObstructed := <-drv_obstr:
 			FSM_obstructionTrigger(&elevator, isObstructed)

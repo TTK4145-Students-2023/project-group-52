@@ -38,5 +38,4 @@ func ElevatorPrint(elevator Elevator_t){
 		eb_toString(elevator.behaviour),
 		
 	)
-	
 }

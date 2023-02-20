@@ -2,7 +2,6 @@ package single_elevator
 
 import "project/single-elevator/elevio"
 
-// CAN WE BOIL THIS???
 
 func requests_above(e Elevator_t) bool {
 	for f := e.floor+1; f < N_FLOORS; f++ {
