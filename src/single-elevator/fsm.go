@@ -1,7 +1,8 @@
 package single_elevator
 
-import(
+import (
 	"project/single-elevator/elevio"
+	"time"
 	//"fmt"
 )
 
@@ -23,7 +24,7 @@ func elevator_init(drv_floors <-chan int) Elevator_t {
 	return Elevator_t{floor: current_floor, direction: DIR_STOP, requests: [N_FLOORS][N_BUTTONS]bool{}, behaviour: IDLE}
 }
 
-func FSM_onFloorArrival(elevator *Elevator_t, newFloor int, completed_request_chan chan<- elevio.ButtonEvent){
+func FSM_onFloorArrival(elevator *Elevator_t, timer *time.Timer, newFloor int, completed_request_chan chan<- elevio.ButtonEvent){
 	elevator.floor = newFloor
 
 	elevio.SetFloorIndicator(elevator.floor)
@@ -36,7 +37,7 @@ func FSM_onFloorArrival(elevator *Elevator_t, newFloor int, completed_request_ch
 			elevator.behaviour = DOOR_OPEN
 			
 			if !elevio.GetObstruction(){
-				Timer_start()
+				timer_start(timer)
 			}
 
 			if clearOrdersIfNeeded(elevator, completed_request_chan) {
@@ -46,7 +47,7 @@ func FSM_onFloorArrival(elevator *Elevator_t, newFloor int, completed_request_ch
 	}
 }
 
-func FSM_NewOrdersAssigned(elevator *Elevator_t, completed_request_chan chan<- elevio.ButtonEvent){
+func FSM_NewOrdersAssigned(elevator *Elevator_t, timer *time.Timer, completed_request_chan chan<- elevio.ButtonEvent){
 	switch(elevator.behaviour){
 	case MOVING:
 		// do nothing
@@ -54,7 +55,7 @@ func FSM_NewOrdersAssigned(elevator *Elevator_t, completed_request_chan chan<- e
 		if clearOrdersIfNeeded(elevator, completed_request_chan) {
 			println(2)
 			if !elevio.GetObstruction(){
-				Timer_start()
+				timer_start(timer)
 			}
 		}
 
@@ -69,7 +70,7 @@ func FSM_NewOrdersAssigned(elevator *Elevator_t, completed_request_chan chan<- e
 		case DOOR_OPEN:
 			elevio.SetDoorOpenLamp(true)
 			if !elevio.GetObstruction(){
-				Timer_start()
+				timer_start(timer)
 			}
 
 			if clearOrdersIfNeeded(elevator, completed_request_chan) {
@@ -85,7 +86,7 @@ func FSM_NewOrdersAssigned(elevator *Elevator_t, completed_request_chan chan<- e
 	}
 }
 
-func FSM_onDoorTimeout(elevator *Elevator_t, completed_request_chan chan<- elevio.ButtonEvent){
+func FSM_onDoorTimeout(elevator *Elevator_t, timer *time.Timer, completed_request_chan chan<- elevio.ButtonEvent){
 	if elevator.behaviour == DOOR_OPEN {
 		pair := Requests_chooseDirection(*elevator)
 		elevator.direction = pair.direction
@@ -94,7 +95,7 @@ func FSM_onDoorTimeout(elevator *Elevator_t, completed_request_chan chan<- elevi
 		switch(elevator.behaviour){
 		case DOOR_OPEN:
 			if !elevio.GetObstruction(){
-				Timer_start()
+				timer_start(timer)
 			}
 			if clearOrdersIfNeeded(elevator, completed_request_chan) {
 				println(4)
@@ -106,12 +107,12 @@ func FSM_onDoorTimeout(elevator *Elevator_t, completed_request_chan chan<- elevi
 	}
 }
 
-func FSM_obstructionTrigger(elevator *Elevator_t, isObstructed bool){
+func FSM_obstructionTrigger(elevator *Elevator_t, timer *time.Timer, isObstructed bool){
 	if elevator.behaviour == DOOR_OPEN {
 		if isObstructed {
-			Timer_kill()
+			timer_kill(timer)
 		} else {
-			Timer_start()
+			timer_start(timer)
 		}
 	}
 }
@@ -152,3 +153,12 @@ func direction_converter(dir Direction_t) elevio.MotorDirection {
 	return elevio.MD_Stop
 }
 
+func timer_start(t *time.Timer){
+	t.Reset(TIMEOUT_SEC * time.Second)
+}
+
+func timer_kill(t *time.Timer){
+	if !t.Stop() {
+		<-t.C
+	}
+}

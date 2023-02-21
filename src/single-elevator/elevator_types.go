@@ -2,6 +2,7 @@ package single_elevator
 
 const N_FLOORS = 4
 const N_BUTTONS = 3
+const TIMEOUT_SEC = 3
 
 type Behaviour_t int
 const (
