@@ -1,23 +1,86 @@
 package network_control
 
 import (
+	"fmt"
+	"project/network"
+	. "project/network-control/types"
 	elev "project/single-elevator"
 	"project/single-elevator/elevio"
+	"time"
 )
 
-type RequestState_t int
+func RunNetworkControl(
+	id string,
+	requests_chan chan<- [elev.N_FLOORS][elev.N_BUTTONS]bool,
+	completed_request_chan <-chan elevio.ButtonEvent,
+) {
+	drv_buttons := make(chan elevio.ButtonEvent)
+	go elevio.PollButtons(drv_buttons)
+	messageTx := make(chan NetworkMessage_t)
+	messageRx := make(chan NetworkMessage_t)
 
-const (
-	COMPLETED RequestState_t = iota
-	NEW
-	ASSIGNED
-	UNKNOWN
-)
+	go network.RunNetwork(id, messageTx, messageRx)
 
-type Request_t struct {
-	State     RequestState_t
-	Count     int
-	AwareList []string
+	send_timer := time.NewTimer(SEND_TIME_SEC * time.Second)
+
+	peerList := []string{id}
+
+	requests := [elev.N_FLOORS][elev.N_BUTTONS]Request_t{}
+
+	for {
+		select {
+		case btn := <-drv_buttons:
+			request := &requests[btn.Floor][btn.Button]
+			switch request.State {
+			case COMPLETED:
+				request.State = NEW
+				request.AwareList = []string{id}
+
+				if is_subset(peerList, request.AwareList) {
+					request.State = ASSIGNED
+					request.AwareList = []string{id}
+					requests_chan <- requestDistributor(requests)
+					elevio.SetButtonLamp(btn.Button, btn.Floor, true)
+				}
+			}
+		case btn := <-completed_request_chan:
+			request := &requests[btn.Floor][btn.Button]
+			switch request.State {
+			case ASSIGNED:
+				request.State = COMPLETED
+				request.AwareList = []string{id}
+				request.Count++
+				elevio.SetButtonLamp(btn.Button, btn.Floor, false)
+			}
+		case <-send_timer.C:
+			send_timer.Reset(SEND_TIME_SEC * time.Second)
+			hallRequests := [elev.N_FLOORS][2]RequestState_t{
+				{COMPLETED, COMPLETED},
+				{COMPLETED, COMPLETED},
+				{COMPLETED, COMPLETED},
+				{COMPLETED, COMPLETED},
+			}
+			cabRequests1 := CabRequests_t{
+				Id:       id,
+				Requests: [elev.N_FLOORS]bool{true, true, true, false},
+			}
+			newMessage := NetworkMessage_t{
+				Sender_id:    id,
+				Available:    true,
+				Behaviour:    elev.IDLE,
+				Floor:        2,
+				Direction:    elev.DIR_STOP,
+				HallRequests: hallRequests,
+				CabRequests:  []CabRequests_t{cabRequests1},
+			}
+			messageTx <- newMessage
+		case message := <-messageRx:
+			fmt.Printf("%+v\n", message)
+		}
+
+		//case: mottar melding fra andre noder
+		//gå gjennom alle knappene og kjør FSM på dem
+	}
 }
 
 // move in different module
@@ -45,48 +108,4 @@ func requestDistributor(requests [elev.N_FLOORS][elev.N_BUTTONS]Request_t) [elev
 		}
 	}
 	return bool_requests
-}
-
-func RunNetworkControl(
-	requests_chan chan<- [elev.N_FLOORS][elev.N_BUTTONS]bool,
-	completed_request_chan <-chan elevio.ButtonEvent,
-) {
-	drv_buttons := make(chan elevio.ButtonEvent)
-	go elevio.PollButtons(drv_buttons)
-
-	our_id := "us"
-
-	peerList := []string{our_id}
-
-	requests := [elev.N_FLOORS][elev.N_BUTTONS]Request_t{}
-
-	for {
-		select {
-		case btn := <-drv_buttons:
-			request := &requests[btn.Floor][btn.Button]
-			switch request.State {
-			case COMPLETED:
-				request.State = NEW
-				request.AwareList = []string{our_id}
-
-				if is_subset(peerList, request.AwareList) {
-					request.State = ASSIGNED
-					request.AwareList = []string{our_id}
-					requests_chan <- requestDistributor(requests)
-					elevio.SetButtonLamp(btn.Button,btn.Floor,true)
-				}
-			}
-		case btn := <-completed_request_chan:
-			request := &requests[btn.Floor][btn.Button]
-			switch request.State {
-			case ASSIGNED:
-				request.State = COMPLETED
-				request.AwareList = []string{our_id}
-				request.Count++
-				elevio.SetButtonLamp(btn.Button,btn.Floor,false)
-			}
-		}
-		//case: mottar melding fra andre noder
-		//gå gjennom alle knappene og kjør FSM på dem
-	}
 }

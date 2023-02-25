@@ -2,11 +2,9 @@ package single_elevator
 
 import (
 	//"fmt"
-	"time"
 	"project/single-elevator/elevio"
+	"time"
 )
-
-
 
 func Run_elevator(
 	requests_chan <-chan [N_FLOORS][N_BUTTONS]bool,
@@ -22,7 +20,7 @@ func Run_elevator(
 
 	door_timeout := time.NewTimer(0)
 	// remove initial trigger, as we don't want trigger to be possible before timer_start is called
-	<-door_timeout.C 
+	<-door_timeout.C
 
 	elevator := elevator_init(drv_floors)
 
@@ -30,25 +28,25 @@ func Run_elevator(
 		select {
 		case requests := <-requests_chan:
 			ElevatorPrint(elevator)
-			
+
 			elevator.requests = requests
 
-			switch(elevator.behaviour){
+			switch elevator.behaviour {
 			case DOOR_OPEN:
-				if !elevio.IsObstruction(){
+				if !elevio.IsObstruction() {
 					timer_start(door_timeout)
 				}
 			case IDLE:
 				elevator.direction, elevator.behaviour = Requests_chooseNewState(elevator)
-		
+
 				ElevatorPrint(elevator)
-				switch(elevator.behaviour){
+				switch elevator.behaviour {
 				case DOOR_OPEN:
 					elevio.SetDoorOpenLamp(true)
-					if !elevio.IsObstruction(){
+					if !elevio.IsObstruction() {
 						timer_start(door_timeout)
-					}			
-					
+					}
+
 				case MOVING:
 					elevio.SetMotorDirection(direction_converter(elevator.direction))
 				}
@@ -58,18 +56,18 @@ func Run_elevator(
 
 			elevator.floor = newFloor
 			elevio.SetFloorIndicator(elevator.floor)
-		
+
 			if elevator.behaviour == MOVING && Requests_shouldStop(elevator) {
 
 				elevio.SetMotorDirection(elevio.MD_Stop)
 				elevio.SetDoorOpenLamp(true)
-				
+
 				elevator.behaviour = DOOR_OPEN
-				
-				if !elevio.IsObstruction(){
+
+				if !elevio.IsObstruction() {
 					timer_start(door_timeout)
 				}
-				
+
 			}
 		case <-door_timeout.C:
 			ElevatorPrint(elevator)
@@ -79,7 +77,7 @@ func Run_elevator(
 					elevator.requests[elevator.floor][elevio.BT_Cab] = false
 					completed_request_chan <- elevio.ButtonEvent{Floor: elevator.floor, Button: elevio.BT_Cab}
 				}
-			
+
 				if Request_shouldClearUp(elevator) {
 					elevator.requests[elevator.floor][elevio.BT_HallUp] = false
 					completed_request_chan <- elevio.ButtonEvent{Floor: elevator.floor, Button: elevio.BT_HallUp}
@@ -87,12 +85,12 @@ func Run_elevator(
 					elevator.requests[elevator.floor][elevio.BT_HallDown] = false
 					completed_request_chan <- elevio.ButtonEvent{Floor: elevator.floor, Button: elevio.BT_HallDown}
 				}
-				
+
 				elevator.direction, elevator.behaviour = Requests_chooseNewState(elevator)
 
-				switch(elevator.behaviour){
+				switch elevator.behaviour {
 				case DOOR_OPEN:
-					if !elevio.IsObstruction(){
+					if !elevio.IsObstruction() {
 						timer_start(door_timeout)
 					}
 				case MOVING, IDLE:
@@ -117,7 +115,7 @@ func elevator_init(drv_floors <-chan int) Elevator_t {
 
 	for f := 0; f < N_FLOORS; f++ {
 		for b := elevio.ButtonType(0); b < N_BUTTONS; b++ {
-			elevio.SetButtonLamp(b,f,false)
+			elevio.SetButtonLamp(b, f, false)
 		}
 	}
 
@@ -130,18 +128,18 @@ func elevator_init(drv_floors <-chan int) Elevator_t {
 	return Elevator_t{floor: current_floor, direction: DIR_STOP, requests: [N_FLOORS][N_BUTTONS]bool{}, behaviour: IDLE}
 }
 
-func timer_start(t *time.Timer){
+func timer_start(t *time.Timer) {
 	t.Reset(TIMEOUT_SEC * time.Second)
 }
 
-func timer_kill(t *time.Timer){
+func timer_kill(t *time.Timer) {
 	if !t.Stop() {
 		<-t.C
 	}
 }
 
 func direction_converter(dir Direction_t) elevio.MotorDirection {
-	switch(dir){
+	switch dir {
 	case DIR_UP:
 		return elevio.MD_Up
 	case DIR_DOWN:
