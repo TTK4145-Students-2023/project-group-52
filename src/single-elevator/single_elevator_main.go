@@ -6,6 +6,20 @@ import (
 	"time"
 )
 
+var current_state ElevatorState_t 
+
+func GetElevatorState() (int, Behaviour_t, Direction_t) {
+	return current_state.floor, current_state.behaviour, current_state.direction
+}
+
+func updateStateChan(e Elevator_t) {
+	current_state = ElevatorState_t{
+		behaviour: e.behaviour,
+		floor:     e.floor,
+		direction: e.direction,
+	}
+}
+
 func Run_elevator(
 	requests_chan <-chan [N_FLOORS][N_BUTTONS]bool,
 	completed_request_chan chan<- elevio.ButtonEvent,
@@ -23,6 +37,7 @@ func Run_elevator(
 	<-door_timeout.C
 
 	elevator := elevator_init(drv_floors)
+	updateStateChan(elevator)
 
 	for {
 		select {
@@ -51,6 +66,7 @@ func Run_elevator(
 					elevio.SetMotorDirection(direction_converter(elevator.direction))
 				}
 			}
+			updateStateChan(elevator)
 		case newFloor := <-drv_floors:
 			ElevatorPrint(elevator)
 
@@ -69,6 +85,7 @@ func Run_elevator(
 				}
 
 			}
+			updateStateChan(elevator)
 		case <-door_timeout.C:
 			ElevatorPrint(elevator)
 
@@ -98,6 +115,7 @@ func Run_elevator(
 					elevio.SetMotorDirection(direction_converter(elevator.direction))
 				}
 			}
+			updateStateChan(elevator)
 		case isObstructed := <-drv_obstr:
 			if elevator.behaviour == DOOR_OPEN {
 				if isObstructed {

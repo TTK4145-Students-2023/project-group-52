@@ -54,28 +54,24 @@ func RunNetworkControl(
 			}
 		case <-send_timer.C:
 			send_timer.Reset(SEND_TIME_SEC * time.Second)
-			hallRequests := [elev.N_FLOORS][2]RequestState_t{
-				{COMPLETED, COMPLETED},
-				{COMPLETED, COMPLETED},
-				{COMPLETED, COMPLETED},
-				{COMPLETED, COMPLETED},
-			}
-			cabRequests1 := CabRequests_t{
-				Id:       id,
-				Requests: [elev.N_FLOORS]bool{true, true, true, false},
-			}
+			floor, behaviour, direction := elev.GetElevatorState()
 			newMessage := NetworkMessage_t{
-				Sender_id:    id,
-				Available:    true,
-				Behaviour:    elev.IDLE,
-				Floor:        2,
-				Direction:    elev.DIR_STOP,
-				HallRequests: hallRequests,
-				CabRequests:  []CabRequests_t{cabRequests1},
+				Sender_id:    	 id,
+				Available:    	 true,
+				Behaviour:    	 behaviour,
+				Floor:        	 floor,
+				Direction:    	 direction,
+				Sender_requests: requests,
+				ExternalCabRequests:  []CabRequests_t{},
 			}
 			messageTx <- newMessage
 		case message := <-messageRx:
-			fmt.Printf("%+v\n", message)
+			fmt.Printf("id: %+v\n", message.Sender_id)
+			fmt.Printf("behaviour: %+v\n", message.Behaviour)
+			fmt.Printf("floor: %+v\n", message.Floor)
+			fmt.Printf("direction: %+v\n", message.Direction)
+			fmt.Printf("requests: %+v\n", message.Sender_requests)
+			fmt.Printf("-------------------------\n")
 		}
 
 		//case: mottar melding fra andre noder

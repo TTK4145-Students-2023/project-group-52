@@ -24,3 +24,9 @@ type Elevator_t struct {
 	requests  [N_FLOORS][N_BUTTONS]bool
 	behaviour Behaviour_t
 }
+
+type ElevatorState_t struct {
+	floor     int
+	direction Direction_t
+	behaviour Behaviour_t
+}

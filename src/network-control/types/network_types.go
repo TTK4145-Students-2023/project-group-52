@@ -25,15 +25,15 @@ type Request_t struct {
 
 type CabRequests_t struct {
 	Id       string
-	Requests [elev.N_FLOORS]bool
+	Requests [elev.N_FLOORS]Request_t
 }
 
 type NetworkMessage_t struct {
-	Sender_id    string
-	Available    bool
-	Behaviour    elev.Behaviour_t
-	Floor        int
-	Direction    elev.Direction_t
-	HallRequests [elev.N_FLOORS][2]RequestState_t
-	CabRequests  []CabRequests_t
+	Sender_id           string
+	Available           bool
+	Behaviour           elev.Behaviour_t
+	Floor               int
+	Direction           elev.Direction_t
+	Sender_requests     [elev.N_FLOORS][elev.N_BUTTONS]Request_t
+	ExternalCabRequests []CabRequests_t
 }
