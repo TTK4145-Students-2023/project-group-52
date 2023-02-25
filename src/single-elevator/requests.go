@@ -34,40 +34,57 @@ func requests_here(e Elevator_t) bool {
 	return false
 }
 
-func Requests_chooseDirection(e Elevator_t) DirectionBehaviourPair {
+func requests_buttonTypeHere(e Elevator_t) elevio.ButtonType {
+	for btn := 0; btn < N_BUTTONS; btn++ {
+		if e.requests[e.floor][btn] {
+			return elevio.ButtonType(btn)
+		}
+	}
+	print("buttonType not found")
+	return elevio.BT_Cab
+}
+
+func Requests_chooseNewState(e Elevator_t) (Direction_t, Behaviour_t) {
 	switch(e.direction){
 	case DIR_UP:
 		if requests_above(e) {
-			return DirectionBehaviourPair{DIR_UP, MOVING}
+			return DIR_UP, MOVING
 		} else if requests_here(e) {
-			return DirectionBehaviourPair{DIR_DOWN, DOOR_OPEN}
+			return DIR_DOWN, DOOR_OPEN
 		} else if requests_below(e) {
-			return DirectionBehaviourPair{DIR_DOWN, MOVING}
+			return DIR_DOWN, MOVING
 		} else {
-			return DirectionBehaviourPair{DIR_STOP, IDLE}
+			return DIR_STOP, IDLE
 		}
 	case DIR_DOWN:
 		if requests_below(e) {
-			return DirectionBehaviourPair{DIR_DOWN, MOVING}
+			return DIR_DOWN, MOVING
 		} else if requests_here(e) {
-			return DirectionBehaviourPair{DIR_UP, DOOR_OPEN}
+			return DIR_UP, DOOR_OPEN
 		} else if requests_above(e) {
-			return DirectionBehaviourPair{DIR_UP, MOVING}
+			return DIR_UP, MOVING
 		} else {
-			return DirectionBehaviourPair{DIR_STOP, IDLE}
+			return DIR_STOP, IDLE
 		}
 	case DIR_STOP:
 		if requests_here(e) {
-			return DirectionBehaviourPair{DIR_STOP, DOOR_OPEN}
+			switch(requests_buttonTypeHere(e)) {
+			case elevio.BT_HallUp:
+				return DIR_UP, DOOR_OPEN
+			case elevio.BT_HallDown:
+				return DIR_DOWN, DOOR_OPEN
+			case elevio.BT_Cab:
+				return DIR_STOP, DOOR_OPEN
+			}
 		} else if requests_above(e) {
-			return DirectionBehaviourPair{DIR_UP, MOVING}
+			return DIR_UP, MOVING
 		} else if requests_below(e) {
-			return DirectionBehaviourPair{DIR_DOWN, MOVING}
+			return DIR_DOWN, MOVING
 		} else {
-			return DirectionBehaviourPair{DIR_STOP, IDLE}
+			return DIR_STOP, IDLE
 		}
 	}
-	return DirectionBehaviourPair{DIR_STOP, IDLE}
+	return DIR_STOP, IDLE
 }
 
 func Requests_shouldStop(e Elevator_t) bool {

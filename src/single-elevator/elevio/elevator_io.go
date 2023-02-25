@@ -120,7 +120,7 @@ func PollObstructionSwitch(receiver chan<- bool) {
 	prev := false
 	for {
 		time.Sleep(_pollRate)
-		v := GetObstruction()
+		v := IsObstruction()
 		if v != prev {
 			receiver <- v
 		}
@@ -150,7 +150,7 @@ func GetStop() bool {
 	return toBool(a[1])
 }
 
-func GetObstruction() bool {
+func IsObstruction() bool {
 	a := read([4]byte{9, 0, 0, 0})
 	return toBool(a[1])
 }
