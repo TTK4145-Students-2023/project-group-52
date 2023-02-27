@@ -6,6 +6,9 @@ import (
 	nc "project/network-control"
 	elevator "project/single-elevator"
 	"project/single-elevator/elevio"
+	"fmt"
+	"os"
+	"project/network/localip"
 )
 
 func main() {
@@ -14,6 +17,15 @@ func main() {
 	var id string
 	flag.StringVar(&id, "id", "", "id of this peer")
 	flag.Parse()
+
+	if id == "" {
+		localIP, err := localip.LocalIP()
+		if err != nil {
+			fmt.Println(err)
+			localIP = "DISCONNECTED"
+		}
+		id = fmt.Sprintf("peer-%s-%d", localIP, os.Getpid())
+	}
 
 	requests_chan := make(chan [elevator.N_FLOORS][elevator.N_BUTTONS]bool)
 	completed_request_chan := make(chan elevio.ButtonEvent)

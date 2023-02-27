@@ -5,7 +5,7 @@ import (
 )
 
 const (
-	SEND_TIME_SEC = 3
+	SEND_TIME_MS = 400
 )
 
 type RequestState_t int

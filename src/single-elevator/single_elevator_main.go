@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-var current_state ElevatorState_t 
+var current_state ElevatorState_t
 
 func GetElevatorState() (int, Behaviour_t, Direction_t) {
 	return current_state.floor, current_state.behaviour, current_state.direction
@@ -42,19 +42,14 @@ func Run_elevator(
 	for {
 		select {
 		case requests := <-requests_chan:
-			ElevatorPrint(elevator)
-
 			elevator.requests = requests
 
 			switch elevator.behaviour {
 			case DOOR_OPEN:
-				if !elevio.IsObstruction() {
-					timer_start(door_timeout)
-				}
+				// we removed reset timer here
 			case IDLE:
 				elevator.direction, elevator.behaviour = Requests_chooseNewState(elevator)
 
-				ElevatorPrint(elevator)
 				switch elevator.behaviour {
 				case DOOR_OPEN:
 					elevio.SetDoorOpenLamp(true)
@@ -68,8 +63,6 @@ func Run_elevator(
 			}
 			updateStateChan(elevator)
 		case newFloor := <-drv_floors:
-			ElevatorPrint(elevator)
-
 			elevator.floor = newFloor
 			elevio.SetFloorIndicator(elevator.floor)
 
@@ -87,8 +80,6 @@ func Run_elevator(
 			}
 			updateStateChan(elevator)
 		case <-door_timeout.C:
-			ElevatorPrint(elevator)
-
 			if elevator.behaviour == DOOR_OPEN {
 				if Request_shouldClearCab(elevator) {
 					elevator.requests[elevator.floor][elevio.BT_Cab] = false
