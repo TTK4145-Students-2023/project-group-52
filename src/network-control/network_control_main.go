@@ -16,7 +16,7 @@ const (
 
 
 func RunNetworkControl(
-	id string,
+	local_id string,
 	requests_chan chan<- [elev.N_FLOORS][elev.N_BUTTONS]bool,
 	completed_request_chan <-chan elevio.ButtonEvent,
 ) {
@@ -28,7 +28,7 @@ func RunNetworkControl(
 	peerUpdateCh := make(chan peers.PeerUpdate)
 	peerTxEnable := make(chan bool)
 
-	go peers.Transmitter(PEER_PORT, id, peerTxEnable)
+	go peers.Transmitter(PEER_PORT, local_id, peerTxEnable)
 	go peers.Receiver(PEER_PORT, peerUpdateCh)
 
 	go bcast.Transmitter(MSG_PORT, messageTx)
@@ -36,7 +36,7 @@ func RunNetworkControl(
 
 	send_timer := time.NewTimer(SEND_TIME_MS * time.Millisecond)
 
-	peerList := []string{id}
+	peerList := []string{local_id}
 
 	requests := [elev.N_FLOORS][elev.N_BUTTONS]Request_t{}
 
@@ -47,11 +47,11 @@ func RunNetworkControl(
 			switch request.State {
 			case COMPLETED:
 				request.State = NEW
-				request.AwareList = []string{id}
+				request.AwareList = []string{local_id}
 
 				if is_subset(peerList, request.AwareList) {
 					request.State = ASSIGNED
-					request.AwareList = []string{id}
+					request.AwareList = []string{local_id}
 					requests_chan <- requestDistributor(requests)
 					elevio.SetButtonLamp(btn.Button, btn.Floor, true)
 				}
@@ -61,7 +61,7 @@ func RunNetworkControl(
 			switch request.State {
 			case ASSIGNED:
 				request.State = COMPLETED
-				request.AwareList = []string{id}
+				request.AwareList = []string{local_id}
 				request.Count++
 				elevio.SetButtonLamp(btn.Button, btn.Floor, false)
 			}
@@ -69,7 +69,7 @@ func RunNetworkControl(
 			send_timer.Reset(SEND_TIME_MS * time.Millisecond)
 			floor, behaviour, direction := elev.GetElevatorState()
 			newMessage := NetworkMessage_t{
-				Sender_id:    	 id,
+				Sender_id:    	 local_id,
 				Available:    	 true,
 				Behaviour:    	 behaviour,
 				Floor:        	 floor,
@@ -82,7 +82,10 @@ func RunNetworkControl(
 			printPeers(p)
 			peerList = p.Peers
 		case message := <-messageRx:
-			printMessage(message)
+			if message.Sender_id == local_id {
+				printMessage(message)
+				break
+			}
 
 			isRequestsUpdated := false
 			//case: mottar melding fra andre noder
@@ -95,7 +98,7 @@ func RunNetworkControl(
 										
 					accepted_request := message.Sender_requests[floor][btn]
 					
-					accepted_request.AwareList = addToAwareList(accepted_request.AwareList, id)
+					accepted_request.AwareList = addToAwareList(accepted_request.AwareList, local_id)
 					
 					isRequestsUpdated = true
 
@@ -106,7 +109,7 @@ func RunNetworkControl(
 						elevio.SetButtonLamp(elevio.ButtonType(btn), floor, false)
 						if is_subset(peerList, accepted_request.AwareList){
 							accepted_request.State = ASSIGNED
-							accepted_request.AwareList = []string{id}
+							accepted_request.AwareList = []string{local_id}
 							elevio.SetButtonLamp(elevio.ButtonType(btn), floor, true)
 						}
 					case ASSIGNED:
