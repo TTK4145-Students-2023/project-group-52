@@ -31,7 +31,6 @@ func RunRequestControl(
 
 	go peers.Transmitter(PEER_PORT, local_id, peerTxEnable)
 	go peers.Receiver(PEER_PORT, peerUpdateCh)
-
 	go bcast.Transmitter(MSG_PORT, messageTx)
 	go bcast.Receiver(MSG_PORT, messageRx)
 
@@ -39,12 +38,30 @@ func RunRequestControl(
 
 	peerList := []string{local_id}
 
-	requests := [N_FLOORS][N_BUTTONS]Request_t{}
+	hallRequests := [N_FLOORS][N_HALL_BUTTONS]Request_t{}
+
+	latestInfoElevators := make(map[string]*ElevatorInfo_t)
+
+	{
+		floor, behaviour, direction := elev.GetElevatorState()
+		latestInfoElevators[local_id] = &ElevatorInfo_t{
+			Available:   true,
+			Behaviour:   behaviour,
+			Floor:       floor,
+			Direction:   direction,
+			CabRequests: [N_FLOORS]Request_t{},
+		}
+	}
 
 	for {
 		select {
 		case btn := <-drv_buttons:
-			request := &requests[btn.Floor][btn.Button]
+			request := Request_t{}
+			if btn.Button == elevio.BT_Cab {
+				request = latestInfoElevators[local_id].CabRequests[btn.Floor]
+			} else {
+				request = hallRequests[btn.Floor][btn.Button]
+			}
 			switch request.State {
 			case COMPLETED:
 				request.State = NEW
@@ -53,12 +70,17 @@ func RunRequestControl(
 				if is_subset(peerList, request.AwareList) {
 					request.State = ASSIGNED
 					request.AwareList = []string{local_id}
-					requests_chan <- requestDistributor(requests)
+					requests_chan <- requestDistributor(hallRequests)
 					elevio.SetButtonLamp(btn.Button, btn.Floor, true)
 				}
 			}
+			if btn.Button == elevio.BT_Cab {
+				latestInfoElevators[local_id].CabRequests[btn.Floor] = request
+			} else {
+				hallRequests[btn.Floor][btn.Button] = request
+			}
 		case btn := <-completed_request_chan:
-			request := &requests[btn.Floor][btn.Button]
+			request := &hallRequests[btn.Floor][btn.Button]
 			switch request.State {
 			case ASSIGNED:
 				request.State = COMPLETED
@@ -70,13 +92,13 @@ func RunRequestControl(
 			send_timer.Reset(SEND_TIME_MS * time.Millisecond)
 			floor, behaviour, direction := elev.GetElevatorState()
 			newMessage := NetworkMessage_t{
-				Sender_id:           local_id,
-				Available:           true,
-				Behaviour:           behaviour,
-				Floor:               floor,
-				Direction:           direction,
-				Sender_requests:     requests,
-				ExternalCabRequests: []CabRequests_t{},
+				Sender_id:          local_id,
+				Available:          true,
+				Behaviour:          behaviour,
+				Floor:              floor,
+				Direction:          direction,
+				SenderHallRequests: hallRequests,
+				AllCabRequests:     []CabRequests_t{},
 			}
 			messageTx <- newMessage
 		case p := <-peerUpdateCh:
@@ -88,19 +110,38 @@ func RunRequestControl(
 				break
 			}
 
+			// info, exist := externalElevators[message.Sender_id]
+			// if !exist {
+			// 	cabRequests := [N_FLOORS]Request_t{}
+			// 	for floor := 0; floor < N_FLOORS; floor++ {
+			// 		cabRequests[floor] = message.SenderHallRequests[floor][elevio.BT_Cab]
+			// 	}
+			// 	info = ExternalElevatorInfo_t{
+			// 		Available:   message.Available,
+			// 		Behaviour:   message.Behaviour,
+			// 		Floor:       message.Floor,
+			// 		Direction:   message.Direction,
+			// 		CabRequests: cabRequests,
+			// 	}
+			// 	externalElevators[message.Sender_id] = info
+			// } else {
+			// 	info.Available = message.Available
+			// 	info.Behaviour = message.Behaviour
+			// 	info.Floor = message.Floor
+			// 	info.Direction = message.Direction
+			// }
+
 			isRequestsUpdated := false
 
 			for floor := 0; floor < N_FLOORS; floor++ {
-				for btn := 0; btn < N_BUTTONS; btn++ {
-					if !shouldAcceptMessage(requests[floor][btn], message.Sender_requests[floor][btn]) {
+				for btn := 0; btn < N_HALL_BUTTONS; btn++ {
+					if !shouldAcceptMessage(hallRequests[floor][btn], message.SenderHallRequests[floor][btn]) {
 						continue
 					}
-
-					accepted_request := message.Sender_requests[floor][btn]
-
-					accepted_request.AwareList = addToAwareList(accepted_request.AwareList, local_id)
-
 					isRequestsUpdated = true
+
+					accepted_request := message.SenderHallRequests[floor][btn]
+					accepted_request.AwareList = addToAwareList(accepted_request.AwareList, local_id)
 
 					switch accepted_request.State {
 					case COMPLETED:
@@ -116,11 +157,11 @@ func RunRequestControl(
 						elevio.SetButtonLamp(elevio.ButtonType(btn), floor, true)
 					}
 
-					requests[floor][btn] = accepted_request
+					hallRequests[floor][btn] = accepted_request
 				}
 			}
 			if isRequestsUpdated {
-				requests_chan <- requestDistributor(requests)
+				requests_chan <- requestDistributor(hallRequests)
 			}
 		}
 
@@ -202,10 +243,10 @@ func addToAwareList(AwareList []string, id string) []string {
 	return append(AwareList, id)
 }
 
-func requestDistributor(requests [N_FLOORS][N_BUTTONS]Request_t) [N_FLOORS][N_BUTTONS]bool {
+func requestDistributor(requests [N_FLOORS][N_HALL_BUTTONS]Request_t) [N_FLOORS][N_BUTTONS]bool {
 	bool_requests := [N_FLOORS][N_BUTTONS]bool{}
 	for floor_num := 0; floor_num < N_FLOORS; floor_num++ {
-		for button_num := 0; button_num < N_BUTTONS; button_num++ {
+		for button_num := 0; button_num < N_HALL_BUTTONS; button_num++ {
 
 			if requests[floor_num][button_num].State == ASSIGNED {
 				bool_requests[floor_num][button_num] = true

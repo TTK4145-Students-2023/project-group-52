@@ -1,6 +1,7 @@
 package types
 
 type RequestState_t int
+
 const (
 	COMPLETED RequestState_t = iota
 	NEW
@@ -19,12 +20,20 @@ type CabRequests_t struct {
 	Requests [N_FLOORS]Request_t
 }
 
+type ElevatorInfo_t struct {
+	Available   bool
+	Behaviour   Behaviour_t
+	Floor       int
+	Direction   Direction_t
+	CabRequests [N_FLOORS]Request_t
+}
+
 type NetworkMessage_t struct {
-	Sender_id           string
-	Available           bool
-	Behaviour           Behaviour_t
-	Floor               int
-	Direction           Direction_t
-	Sender_requests     [N_FLOORS][N_BUTTONS]Request_t
-	ExternalCabRequests []CabRequests_t
+	Sender_id          string
+	Available          bool
+	Behaviour          Behaviour_t
+	Floor              int
+	Direction          Direction_t
+	SenderHallRequests [N_FLOORS][N_HALL_BUTTONS]Request_t
+	AllCabRequests     []CabRequests_t
 }

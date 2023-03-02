@@ -4,6 +4,7 @@ import "sync"
 
 const N_FLOORS = 4
 const N_BUTTONS = 3
+const N_HALL_BUTTONS = 2
 
 type Behaviour_t int
 
@@ -34,3 +35,4 @@ type ElevatorSharedState_t struct {
 	Direction Direction_t
 	Behaviour Behaviour_t
 }
+

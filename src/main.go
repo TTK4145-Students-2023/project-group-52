@@ -5,17 +5,14 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"os/exec"
-	"project/request_control"
-	"project/network/localip"
 	"project/elevator_control"
 	"project/hardware/elevio"
+	"project/network/localip"
+	"project/request_control"
 	. "project/types"
 )
 
 func main() {
-	exec.Command("gnome-terminal", "--", "elevatorserver").Run()
-
 	// Our id can be anything. Here we pass it on the command line, using
 	//  `go run main.go -id=our_id`
 	var id string

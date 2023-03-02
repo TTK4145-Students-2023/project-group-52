@@ -2,9 +2,9 @@ package elevator_control
 
 import (
 	//"fmt"
-	. "project/types"
-	"project/hardware/elevio"
 	req "project/elevator_control/requests"
+	"project/hardware/elevio"
+	. "project/types"
 	"time"
 )
 
@@ -15,14 +15,14 @@ var shared_state ElevatorSharedState_t
 func GetElevatorState() (int, Behaviour_t, Direction_t) {
 	shared_state.Mutex.RLock()
 	defer shared_state.Mutex.RUnlock()
-	
+
 	return shared_state.Floor, shared_state.Behaviour, shared_state.Direction
 }
 
 func updateElevatorState(e Elevator_t) {
 	shared_state.Mutex.Lock()
 	defer shared_state.Mutex.Unlock()
-	
+
 	shared_state.Floor = e.Floor
 	shared_state.Direction = e.Direction
 	shared_state.Behaviour = e.Behaviour
