@@ -1,13 +1,13 @@
 package request_control
 
 import (
-	. "project/types"
-	"project/network/bcast"
-	"project/network/peers"
+	printing "project/debug_printing"
 	elev "project/elevator_control"
 	"project/hardware/elevio"
+	"project/network/bcast"
+	"project/network/peers"
+	. "project/types"
 	"time"
-	printing "project/debug_printing"
 )
 
 const (
