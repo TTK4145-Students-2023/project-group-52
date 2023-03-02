@@ -88,8 +88,7 @@ func RunNetworkControl(
 			}
 
 			isRequestsUpdated := false
-			//case: mottar melding fra andre noder
-			//gå gjennom alle knappene og kjør FSM på dem
+
 			for floor := 0; floor < elev.N_FLOORS; floor++ {
 				for btn := 0; btn < elev.N_BUTTONS; btn++ {		
 					if !shouldAcceptMessage(requests[floor][btn], message.Sender_requests[floor][btn]) {

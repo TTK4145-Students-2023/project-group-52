@@ -6,18 +6,20 @@ import (
 	"time"
 )
 
-var current_state ElevatorState_t
+var shared_state ElevatorSharedState_t
 
 func GetElevatorState() (int, Behaviour_t, Direction_t) {
-	return current_state.floor, current_state.behaviour, current_state.direction
+	shared_state.mutex.RLock()
+	defer shared_state.mutex.RUnlock()
+	return shared_state.floor, shared_state.behaviour, shared_state.direction
 }
 
-func updateStateChan(e Elevator_t) {
-	current_state = ElevatorState_t{
-		behaviour: e.behaviour,
-		floor:     e.floor,
-		direction: e.direction,
-	}
+func updateElevatorState(e Elevator_t) {
+	shared_state.mutex.Lock()
+	defer shared_state.mutex.Unlock()
+	shared_state.floor = e.floor
+	shared_state.direction = e.direction
+	shared_state.behaviour = e.behaviour
 }
 
 func Run_elevator(
@@ -37,7 +39,7 @@ func Run_elevator(
 	<-door_timeout.C
 
 	elevator := elevator_init(drv_floors)
-	updateStateChan(elevator)
+	updateElevatorState(elevator)
 
 	for {
 		select {
@@ -61,7 +63,7 @@ func Run_elevator(
 					elevio.SetMotorDirection(direction_converter(elevator.direction))
 				}
 			}
-			updateStateChan(elevator)
+			updateElevatorState(elevator)
 		case newFloor := <-drv_floors:
 			elevator.floor = newFloor
 			elevio.SetFloorIndicator(elevator.floor)
@@ -78,7 +80,7 @@ func Run_elevator(
 				}
 
 			}
-			updateStateChan(elevator)
+			updateElevatorState(elevator)
 		case <-door_timeout.C:
 			if elevator.behaviour == DOOR_OPEN {
 				if Request_shouldClearCab(elevator) {
@@ -106,7 +108,7 @@ func Run_elevator(
 					elevio.SetMotorDirection(direction_converter(elevator.direction))
 				}
 			}
-			updateStateChan(elevator)
+			updateElevatorState(elevator)
 		case isObstructed := <-drv_obstr:
 			if elevator.behaviour == DOOR_OPEN {
 				if isObstructed {
@@ -138,7 +140,7 @@ func elevator_init(drv_floors <-chan int) Elevator_t {
 }
 
 func timer_start(t *time.Timer) {
-	t.Reset(TIMEOUT_SEC * time.Second)
+	t.Reset(DOOR_TIMEOUT_SEC * time.Second)
 }
 
 func timer_kill(t *time.Timer) {

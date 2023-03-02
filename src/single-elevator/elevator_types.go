@@ -1,10 +1,13 @@
 package single_elevator
 
+import "sync"
+
 const N_FLOORS = 4
 const N_BUTTONS = 3
-const TIMEOUT_SEC = 3
+const DOOR_TIMEOUT_SEC = 3
 
 type Behaviour_t int
+
 const (
 	IDLE Behaviour_t = iota
 	DOOR_OPEN
@@ -12,6 +15,7 @@ const (
 )
 
 type Direction_t int
+
 const (
 	DIR_UP Direction_t = iota
 	DIR_STOP
@@ -25,7 +29,8 @@ type Elevator_t struct {
 	behaviour Behaviour_t
 }
 
-type ElevatorState_t struct {
+type ElevatorSharedState_t struct {
+	mutex     sync.RWMutex
 	floor     int
 	direction Direction_t
 	behaviour Behaviour_t

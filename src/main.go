@@ -3,15 +3,18 @@ package main
 import (
 	//"project/single-elevator/elevio"
 	"flag"
-	nc "project/network-control"
-	elevator "project/single-elevator"
-	"project/single-elevator/elevio"
 	"fmt"
 	"os"
+	"os/exec"
+	nc "project/network-control"
 	"project/network/localip"
+	elevator "project/single-elevator"
+	"project/single-elevator/elevio"
 )
 
 func main() {
+	exec.Command("gnome-terminal", "--", "elevatorserver").Run()
+
 	// Our id can be anything. Here we pass it on the command line, using
 	//  `go run main.go -id=our_id`
 	var id string
@@ -33,7 +36,5 @@ func main() {
 	go elevator.Run_elevator(requests_chan, completed_request_chan)
 	go nc.RunNetworkControl(id, requests_chan, completed_request_chan)
 
-	for {
-
-	}
+	select {} //keeps main from exiting without using CPU power
 }
