@@ -6,10 +6,11 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	nc "project/network-control"
+	"project/request_control"
 	"project/network/localip"
-	elevator "project/single-elevator"
-	"project/single-elevator/elevio"
+	"project/elevator_control"
+	"project/hardware/elevio"
+	. "project/types"
 )
 
 func main() {
@@ -30,11 +31,11 @@ func main() {
 		id = fmt.Sprintf("peer-%s-%d", localIP, os.Getpid())
 	}
 
-	requests_chan := make(chan [elevator.N_FLOORS][elevator.N_BUTTONS]bool)
+	requests_chan := make(chan [N_FLOORS][N_BUTTONS]bool)
 	completed_request_chan := make(chan elevio.ButtonEvent)
 
-	go elevator.Run_elevator(requests_chan, completed_request_chan)
-	go nc.RunNetworkControl(id, requests_chan, completed_request_chan)
+	go elevator_control.RunElevatorControl(requests_chan, completed_request_chan)
+	go request_control.RunRequestControl(id, requests_chan, completed_request_chan)
 
 	select {} //keeps main from exiting without using CPU power
 }
