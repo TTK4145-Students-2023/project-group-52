@@ -1,8 +1,8 @@
 package cost_function
 
 import (
-	. "project/types"
 	"project/hardware/elevio"
+	. "project/types"
 )
 
 func RequestDistributor(

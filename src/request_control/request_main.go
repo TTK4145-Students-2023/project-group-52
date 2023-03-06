@@ -113,6 +113,12 @@ func RunRequestControl(
 		case <-send_timer.C:
 			send_timer.Reset(SEND_TIME_MS * time.Millisecond)
 			available, behaviour, direction, floor := elev.GetElevatorState()
+			latestInfoElevators[local_id] = ElevatorInfo_t{
+				Available: available,
+				Behaviour: behaviour,
+				Floor:     floor,
+				Direction: direction,
+			}
 			newMessage := NetworkMessage_t{
 				Sender_id:          local_id,
 				Available:          available,
@@ -128,7 +134,7 @@ func RunRequestControl(
 			peerList = p.Peers
 		case message := <-messageRx:
 			if message.Sender_id == local_id {
-				printing.PrintMessage(message, local_id)
+				printing.PrintMessage(message)
 				break
 			}
 
@@ -201,6 +207,13 @@ func RunRequestControl(
 				}
 			}
 			if isRequestsUpdated {
+				latestInfoElevators[message.Sender_id] = ElevatorInfo_t{
+					Available: message.Available,
+					Behaviour: message.Behaviour,
+					Direction: message.Direction,
+					Floor: message.Floor,
+				}
+
 				requests_chan <- cost_function.RequestDistributor(hallRequests,allCabRequests,latestInfoElevators,local_id)
 			}
 		}

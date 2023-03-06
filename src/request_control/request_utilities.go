@@ -1,7 +1,6 @@
 package request_control
 
 import (
-	"errors"
 	. "project/types"
 )
 
@@ -77,13 +76,4 @@ func addToAwareList(AwareList []string, id string) []string {
 		}
 	}
 	return append(AwareList, id)
-}
-
-func getCabRequestsIndex(id string, allCabRequests []CabRequests_t) (int, error) {
-	for i, req := range allCabRequests {
-		if req.Id == id {
-			return i, nil
-		}
-	}
-	return 0, errors.New("Id not found")
 }

@@ -15,11 +15,6 @@ type Request_t struct {
 	AwareList []string
 }
 
-type CabRequests_t struct {
-	Id       string
-	Requests [N_FLOORS]Request_t
-}
-
 type ElevatorInfo_t struct {
 	Available bool
 	Behaviour Behaviour_t
