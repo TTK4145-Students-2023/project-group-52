@@ -1,4 +1,4 @@
-package requests
+package local_requests
 
 import (
 	"project/hardware/elevio"

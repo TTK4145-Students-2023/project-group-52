@@ -2,7 +2,7 @@ package elevator_control
 
 import (
 	//"fmt"
-	req "project/elevator_control/requests"
+	req "project/elevator_control/local_requests"
 	"project/hardware/elevio"
 	. "project/types"
 	"time"
@@ -12,20 +12,27 @@ const DOOR_TIMEOUT_SEC = 3
 
 var shared_state ElevatorSharedState_t
 
-func GetElevatorState() (int, Behaviour_t, Direction_t) {
+func GetElevatorState() (bool, Behaviour_t, Direction_t, int) {
 	shared_state.Mutex.RLock()
 	defer shared_state.Mutex.RUnlock()
 
-	return shared_state.Floor, shared_state.Behaviour, shared_state.Direction
+	return shared_state.Available, shared_state.Behaviour, shared_state.Direction, shared_state.Floor
 }
 
 func updateElevatorState(e Elevator_t) {
 	shared_state.Mutex.Lock()
 	defer shared_state.Mutex.Unlock()
 
-	shared_state.Floor = e.Floor
-	shared_state.Direction = e.Direction
 	shared_state.Behaviour = e.Behaviour
+	shared_state.Direction = e.Direction
+	shared_state.Floor = e.Floor
+}
+
+func setElevatorAvailability(value bool) {
+	shared_state.Mutex.Lock()
+	defer shared_state.Mutex.Unlock()
+
+	shared_state.Available = value
 }
 
 func RunElevatorControl(
@@ -34,16 +41,18 @@ func RunElevatorControl(
 ) {
 	elevio.Init("localhost:15657", N_FLOORS)
 
+	
 	drv_Floors := make(chan int)
 	drv_obstr := make(chan bool)
-
+	
 	go elevio.PollFloorSensor(drv_Floors)
 	go elevio.PollObstructionSwitch(drv_obstr)
-
+	
 	door_timeout := time.NewTimer(0)
-
+	
 	elevator := elevator_init(drv_Floors)
 	updateElevatorState(elevator)
+	setElevatorAvailability(true)
 
 	for {
 		select {

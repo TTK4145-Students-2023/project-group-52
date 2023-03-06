@@ -31,8 +31,9 @@ type Elevator_t struct {
 
 type ElevatorSharedState_t struct {
 	Mutex     sync.RWMutex
-	Floor     int
-	Direction Direction_t
+	Available bool
 	Behaviour Behaviour_t
+	Direction Direction_t
+	Floor     int
 }
 

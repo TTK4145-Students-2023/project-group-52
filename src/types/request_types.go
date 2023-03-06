@@ -21,18 +21,18 @@ type CabRequests_t struct {
 }
 
 type ElevatorInfo_t struct {
-	Available   bool
-	Behaviour   Behaviour_t
-	Floor       int
-	Direction   Direction_t
+	Available bool
+	Behaviour Behaviour_t
+	Direction Direction_t
+	Floor     int
 }
 
 type NetworkMessage_t struct {
 	Sender_id          string
 	Available          bool
 	Behaviour          Behaviour_t
-	Floor              int
 	Direction          Direction_t
+	Floor              int
 	SenderHallRequests [N_FLOORS][N_HALL_BUTTONS]Request_t
 	AllCabRequests     map[string][N_FLOORS]Request_t
 }

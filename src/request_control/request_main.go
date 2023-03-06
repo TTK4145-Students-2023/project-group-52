@@ -1,9 +1,9 @@
 package request_control
 
 import (
-	"errors"
 	printing "project/debug_printing"
 	elev "project/elevator_control"
+	"project/cost_function"
 	"project/hardware/elevio"
 	"project/network/bcast"
 	"project/network/peers"
@@ -45,9 +45,9 @@ func RunRequestControl(
 
 	allCabRequests[local_id] = [N_FLOORS]Request_t{}
 	{
-		floor, behaviour, direction := elev.GetElevatorState()
+		available, behaviour, direction, floor := elev.GetElevatorState()
 		latestInfoElevators[local_id] = ElevatorInfo_t{
-			Available: true,
+			Available: available,
 			Behaviour: behaviour,
 			Floor:     floor,
 			Direction: direction,
@@ -78,7 +78,7 @@ func RunRequestControl(
 					} else {
 						hallRequests[btn.Floor][btn.Button] = request
 					}
-					requests_chan <- requestDistributor(hallRequests,allCabRequests,latestInfoElevators,local_id)
+					requests_chan <- cost_function.RequestDistributor(hallRequests,allCabRequests,latestInfoElevators,local_id)
 					elevio.SetButtonLamp(btn.Button, btn.Floor, true)
 				}
 			}
@@ -112,10 +112,10 @@ func RunRequestControl(
 			}
 		case <-send_timer.C:
 			send_timer.Reset(SEND_TIME_MS * time.Millisecond)
-			floor, behaviour, direction := elev.GetElevatorState()
+			available, behaviour, direction, floor := elev.GetElevatorState()
 			newMessage := NetworkMessage_t{
 				Sender_id:          local_id,
-				Available:          true,
+				Available:          available,
 				Behaviour:          behaviour,
 				Floor:              floor,
 				Direction:          direction,
@@ -201,115 +201,8 @@ func RunRequestControl(
 				}
 			}
 			if isRequestsUpdated {
-				requests_chan <- requestDistributor(hallRequests,allCabRequests,latestInfoElevators,local_id)
+				requests_chan <- cost_function.RequestDistributor(hallRequests,allCabRequests,latestInfoElevators,local_id)
 			}
 		}
 	}
-}
-
-// move in different module
-func shouldAcceptMessage(local_request Request_t, message_request Request_t) bool {
-	if message_request.State == UNKNOWN {
-		return false
-	}
-	if local_request.State == UNKNOWN {
-		return true
-	}
-	if message_request.Count < local_request.Count {
-		return false
-	}
-	if message_request.Count > local_request.Count {
-		return true
-	}
-	if message_request.State == local_request.State && is_subset(message_request.AwareList, local_request.AwareList) {
-		// count is equal
-		return false
-	}
-
-	switch local_request.State {
-	case COMPLETED:
-		switch message_request.State {
-		case COMPLETED:
-			return true
-		case NEW:
-			return true
-		case ASSIGNED:
-			println("FROM COMPLETED TO ASSIGNED (should not happen)")
-			return true
-		}
-	case NEW:
-		switch message_request.State {
-		case COMPLETED:
-			return false
-		case NEW:
-			return true
-		case ASSIGNED:
-			return true
-		}
-	case ASSIGNED:
-		switch message_request.State {
-		case COMPLETED:
-			return false
-		case NEW:
-			return false
-		case ASSIGNED:
-			return true
-		}
-	}
-	print("shouldAcceptMessage() did not return")
-	return false
-}
-
-func is_subset(subset []string, superset []string) bool {
-	checkset := make(map[string]bool)
-	for _, element := range subset {
-		checkset[element] = true
-	}
-	for _, value := range superset {
-		if checkset[value] {
-			delete(checkset, value)
-		}
-	}
-	return len(checkset) == 0 //this implies that set is subset of superset
-}
-
-func addToAwareList(AwareList []string, id string) []string {
-	for i := range AwareList {
-		if AwareList[i] == id {
-			return AwareList
-		}
-	}
-	return append(AwareList, id)
-}
-
-func requestDistributor(
-	hallRequests [N_FLOORS][N_HALL_BUTTONS]Request_t,
-	allCabRequest map[string][N_FLOORS]Request_t,
-	latestInfoElevators map[string]ElevatorInfo_t,
-	local_id string,
-) [N_FLOORS][N_BUTTONS]bool {
-
-	bool_requests := [N_FLOORS][N_BUTTONS]bool{}
-	localCabRequest := allCabRequest[local_id]
-
-	for floor_num := 0; floor_num < N_FLOORS; floor_num++ {
-		for button_num := 0; button_num < N_HALL_BUTTONS; button_num++ {
-			if hallRequests[floor_num][button_num].State == ASSIGNED {
-				bool_requests[floor_num][button_num] = true
-			}
-		}
-		if localCabRequest[floor_num].State == ASSIGNED {
-			bool_requests[floor_num][elevio.BT_Cab] = true
-		}
-	}
-	return bool_requests
-}
-
-func getCabRequestsIndex(id string, allCabRequests []CabRequests_t) (int, error) {
-	for i, req := range allCabRequests {
-		if req.Id == id {
-			return i, nil
-		}
-	}
-	return 0, errors.New("Id not found")
 }
