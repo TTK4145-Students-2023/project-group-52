@@ -14,7 +14,7 @@ import (
 const (
 	PEER_PORT    = 30052
 	MSG_PORT     = 30051
-	SEND_TIME_MS = 1000
+	SEND_TIME_MS = 200
 )
 
 func RunRequestControl(
@@ -63,6 +63,8 @@ func RunRequestControl(
 			} else {
 				request = hallRequests[btn.Floor][btn.Button]
 			}
+			isRequestAssigned := false
+
 			switch request.State {
 			case COMPLETED:
 				request.State = NEW
@@ -71,17 +73,10 @@ func RunRequestControl(
 				if is_subset(peerList, request.AwareList) {
 					request.State = ASSIGNED
 					request.AwareList = []string{local_id}
-					if btn.Button == elevio.BT_Cab {
-						localCabRequest := allCabRequests[local_id]
-						localCabRequest[btn.Floor] = request
-						allCabRequests[local_id] = localCabRequest
-					} else {
-						hallRequests[btn.Floor][btn.Button] = request
-					}
-					requests_chan <- cost_function.RequestDistributor(hallRequests,allCabRequests,latestInfoElevators,local_id)
-					elevio.SetButtonLamp(btn.Button, btn.Floor, true)
+					isRequestAssigned = true
 				}
 			}
+
 			if btn.Button == elevio.BT_Cab {
 				localCabRequest := allCabRequests[local_id]
 				localCabRequest[btn.Floor] = request
@@ -89,6 +84,12 @@ func RunRequestControl(
 			} else {
 				hallRequests[btn.Floor][btn.Button] = request
 			}
+
+			if isRequestAssigned {
+				requests_chan <- cost_function.RequestDistributor(hallRequests,allCabRequests,latestInfoElevators,local_id)
+				elevio.SetButtonLamp(btn.Button, btn.Floor, true)
+			}
+			
 		case btn := <-completed_request_chan:
 			request := Request_t{}
 			if btn.Button == elevio.BT_Cab {
@@ -136,6 +137,15 @@ func RunRequestControl(
 			if message.Sender_id == local_id {
 				//printing.PrintMessage(message)
 				break
+			}
+
+			if _, id_exist := latestInfoElevators[message.Sender_id]; !id_exist {
+				latestInfoElevators[message.Sender_id] = ElevatorInfo_t{
+					Available: message.Available,
+					Behaviour: message.Behaviour,
+					Direction: message.Direction,
+					Floor: message.Floor,
+				}
 			}
 
 			isRequestsUpdated := false
@@ -219,3 +229,5 @@ func RunRequestControl(
 		}
 	}
 }
+
+

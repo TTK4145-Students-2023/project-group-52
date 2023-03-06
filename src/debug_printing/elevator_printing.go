@@ -40,6 +40,5 @@ func ElevatorPrint(elevator Elevator_t){
 		elevator.Floor,
 		Ed_toString(elevator.Direction),
 		Eb_toString(elevator.Behaviour),
-		
 	)
 }

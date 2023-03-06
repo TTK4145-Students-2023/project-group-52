@@ -47,13 +47,15 @@ func RequestDistributor(
 	for id, cabRequests := range allCabRequests {
 		elevatorInfo, ok := latestInfoElevators[id]
 		if !ok {
-			fmt.Println("id not in latestInfo: ", ok)
+			fmt.Println("id",id,"not in latestInfo")
 			return [N_FLOORS][N_BUTTONS]bool{}
 		}
 		
 		if !elevatorInfo.Available {
 			continue 
 		}
+
+		// TODO: check if id is in peerlist
 
 		boolCabRequests := [N_FLOORS]bool{}
 		for floor_num := 0; floor_num < N_FLOORS; floor_num++ {

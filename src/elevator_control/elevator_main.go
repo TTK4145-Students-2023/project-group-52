@@ -71,7 +71,6 @@ func RunElevatorControl(
 					if !elevio.IsObstruction() {
 						timer_start(door_timeout)
 					}
-
 				case MOVING:
 					elevio.SetMotorDirection(Direction_converter(elevator.Direction))
 				}
