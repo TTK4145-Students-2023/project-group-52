@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	PEER_PORT    = 42069
-	MSG_PORT     = 42068
+	PEER_PORT    = 30052
+	MSG_PORT     = 30051
 	SEND_TIME_MS = 1000
 )
 
@@ -134,7 +134,7 @@ func RunRequestControl(
 			peerList = p.Peers
 		case message := <-messageRx:
 			if message.Sender_id == local_id {
-				printing.PrintMessage(message)
+				//printing.PrintMessage(message)
 				break
 			}
 
