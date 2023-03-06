@@ -25,7 +25,6 @@ type ElevatorInfo_t struct {
 	Behaviour   Behaviour_t
 	Floor       int
 	Direction   Direction_t
-	CabRequests [N_FLOORS]Request_t
 }
 
 type NetworkMessage_t struct {
@@ -35,5 +34,5 @@ type NetworkMessage_t struct {
 	Floor              int
 	Direction          Direction_t
 	SenderHallRequests [N_FLOORS][N_HALL_BUTTONS]Request_t
-	AllCabRequests     []CabRequests_t
+	AllCabRequests     map[string][N_FLOORS]Request_t
 }

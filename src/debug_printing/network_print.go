@@ -6,7 +6,7 @@ import (
 	. "project/types"
 )
 
-func REQ_toString(requests [N_HALL_BUTTONS]Request_t) string {
+func REQ_toString(requests [N_HALL_BUTTONS]Request_t, cabRequest Request_t) string {
 	text := ""
 	for _, req := range requests {
 		for len(req.AwareList) < 3 {
@@ -14,6 +14,10 @@ func REQ_toString(requests [N_HALL_BUTTONS]Request_t) string {
 		}
 		text = text + "State: " + RS_toString(req.State) + " - Count:" + fmt.Sprintf("%d", req.Count) + " - AwareList:" + fmt.Sprintf("%+v", req.AwareList) + " | "
 	}
+	for len(cabRequest.AwareList) < 3 {
+		cabRequest.AwareList = append(cabRequest.AwareList, " ")
+	}
+	text = text + "State: " + RS_toString(cabRequest.State) + " - Count:" + fmt.Sprintf("%d", cabRequest.Count) + " - AwareList:" + fmt.Sprintf("%+v", cabRequest.AwareList) + " | "
 	return text
 }
 
@@ -33,14 +37,14 @@ func RS_toString(state RequestState_t) string {
 	return "???"
 }
 
-func PrintMessage(message NetworkMessage_t) {
+func PrintMessage(message NetworkMessage_t, local_id string) {
 	fmt.Printf("id: %+v\n", message.Sender_id)
 	fmt.Printf("behaviour: %+v\n", Eb_toString(message.Behaviour))
 	fmt.Printf("floor: %+v\n", message.Floor)
 	fmt.Printf("direction: %+v\n", Ed_toString(message.Direction))
 	fmt.Printf("    Up                                         Down                                       Cab\n")
 	for i, rq := range message.SenderHallRequests {
-		fmt.Printf("%d - %s\n", i+1, REQ_toString(rq))
+		fmt.Printf("%d - %s\n", i+1, REQ_toString(rq, message.AllCabRequests[local_id][i]))
 	}
 	fmt.Printf("###################################################################################################################################|\n")
 }
