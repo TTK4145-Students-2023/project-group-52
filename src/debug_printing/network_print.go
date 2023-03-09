@@ -42,6 +42,7 @@ func PrintMessage(message NetworkMessage_t) {
 	fmt.Printf("behaviour: %+v\n", Eb_toString(message.Behaviour))
 	fmt.Printf("floor: %+v\n", message.Floor)
 	fmt.Printf("direction: %+v\n", Ed_toString(message.Direction))
+	fmt.Printf("available: %+v\n", message.Available)
 	fmt.Printf("    Up                                         Down                                       Cab\n")
 	for i, rq := range message.SenderHallRequests {
 		fmt.Printf("%d - %s\n", i+1, REQ_toString(rq, message.AllCabRequests[message.Sender_id][i]))

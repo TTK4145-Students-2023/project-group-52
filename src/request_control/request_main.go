@@ -14,7 +14,7 @@ import (
 const (
 	PEER_PORT    = 30052
 	MSG_PORT     = 30051
-	SEND_TIME_MS = 200
+	SEND_TIME_MS = 3000
 )
 
 func RunRequestControl(
@@ -164,6 +164,9 @@ func RunRequestControl(
 
 			for id, senderCabRequests := range message.AllCabRequests {
 				if _, id_exist := allCabRequests[id]; !id_exist {
+					for floor := range(senderCabRequests){
+						senderCabRequests[floor].AwareList = addToAwareList(senderCabRequests[floor].AwareList, local_id)
+					}
 					allCabRequests[id] = senderCabRequests
 					continue
 				}

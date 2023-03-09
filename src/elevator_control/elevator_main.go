@@ -9,6 +9,7 @@ import (
 )
 
 const DOOR_TIMEOUT_SEC = 3
+const MOBILITY_TIMOEUT_SEC = 4
 
 var shared_state ElevatorSharedState_t
 
@@ -41,18 +42,21 @@ func RunElevatorControl(
 ) {
 	elevio.Init("localhost:15657", N_FLOORS)
 
-
 	drv_Floors := make(chan int)
 	drv_obstr := make(chan bool)
-	
+
 	go elevio.PollFloorSensor(drv_Floors)
 	go elevio.PollObstructionSwitch(drv_obstr)
-	
-	door_timeout := time.NewTimer(0)
-	
+
 	elevator := elevator_init(drv_Floors)
 	updateElevatorState(elevator)
 	setElevatorAvailability(true)
+
+	door_timeout := time.NewTimer(0)
+	timer_kill(door_timeout)
+	mobility_timeout := time.NewTimer(0)
+	timer_kill(mobility_timeout)
+
 
 	for {
 		select {
@@ -60,8 +64,6 @@ func RunElevatorControl(
 			elevator.Requests = requests
 
 			switch elevator.Behaviour {
-			case DOOR_OPEN:
-				// we removed reset timer here
 			case IDLE:
 				elevator.Direction, elevator.Behaviour = req.ChooseNewDirectionAndBehavior(elevator)
 
@@ -70,23 +72,30 @@ func RunElevatorControl(
 					elevio.SetDoorOpenLamp(true)
 					handleObstruction(door_timeout)
 				case MOVING:
+					timer_start(mobility_timeout, MOBILITY_TIMOEUT_SEC)
 					elevio.SetMotorDirection(Direction_converter(elevator.Direction))
 				}
 			}
 			updateElevatorState(elevator)
 		case newFloor := <-drv_Floors:
+			timer_start(mobility_timeout, MOBILITY_TIMOEUT_SEC)
+			setElevatorAvailability(true)
+			
 			elevator.Floor = newFloor
 			elevio.SetFloorIndicator(elevator.Floor)
-
+			
 			if elevator.Behaviour == MOVING && req.ShouldStop(elevator) {
+				timer_kill(mobility_timeout)
 
 				elevio.SetMotorDirection(elevio.MD_Stop)
-				elevio.SetDoorOpenLamp(true)
 
-				elevator.Behaviour = DOOR_OPEN
-
-				handleObstruction(door_timeout)
-
+				if req.ShouldClearCab(elevator) || req.ShouldClearUp(elevator) || req.ShouldClearDown(elevator) {
+					elevio.SetDoorOpenLamp(true)
+					elevator.Behaviour = DOOR_OPEN
+					handleObstruction(door_timeout)
+				} else {
+					elevator.Behaviour = IDLE
+				}
 			}
 			updateElevatorState(elevator)
 		case <-door_timeout.C:
@@ -109,8 +118,11 @@ func RunElevatorControl(
 				switch elevator.Behaviour {
 				case DOOR_OPEN:
 					handleObstruction(door_timeout)
-				case MOVING, IDLE:
+				case IDLE:
 					elevio.SetDoorOpenLamp(false)
+				case MOVING:
+					elevio.SetDoorOpenLamp(false)
+					timer_start(mobility_timeout, MOBILITY_TIMOEUT_SEC)
 					elevio.SetMotorDirection(Direction_converter(elevator.Direction))
 				}
 			}
@@ -122,9 +134,12 @@ func RunElevatorControl(
 					timer_kill(door_timeout)
 				} else {
 					setElevatorAvailability(true)
-					timer_start(door_timeout)
+					timer_start(door_timeout, DOOR_TIMEOUT_SEC)
 				}
 			}
+		case <-mobility_timeout.C:
+			println("\nMOBILITY TIMEOUT\n")
+			setElevatorAvailability(false)
 		}
 	}
 }
@@ -147,21 +162,22 @@ func elevator_init(drv_Floors <-chan int) Elevator_t {
 	return Elevator_t{Floor: current_Floor, Direction: DIR_STOP, Requests: [N_FLOORS][N_BUTTONS]bool{}, Behaviour: IDLE}
 }
 
-func handleObstruction(door_timeout *time.Timer){
+func handleObstruction(door_timeout *time.Timer) {
 	if !elevio.IsObstruction() {
-		timer_start(door_timeout)
+		timer_start(door_timeout, DOOR_TIMEOUT_SEC)
 	} else {
 		setElevatorAvailability(false)
 	}
 }
 
-func timer_start(t *time.Timer) {
-	t.Reset(DOOR_TIMEOUT_SEC * time.Second)
+func timer_start(timer *time.Timer, sec int) {
+	timer.Reset(time.Duration(sec) * time.Second)
+
 }
 
-func timer_kill(t *time.Timer) {
-	if !t.Stop() {
-		<-t.C
+func timer_kill(timer *time.Timer) {
+	if !timer.Stop() {
+		<-timer.C
 	}
 }
 

@@ -36,4 +36,3 @@ type ElevatorSharedState_t struct {
 	Direction Direction_t
 	Floor     int
 }
-
