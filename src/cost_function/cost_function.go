@@ -7,22 +7,17 @@ import (
 	. "project/types"
 )
 
-
-
-
 type HRAElevState struct {
-    Behavior    string      `json:"behaviour"`
-    Floor       int         `json:"floor"` 
-    Direction   string      `json:"direction"`
-    CabRequests [N_FLOORS]bool      `json:"cabRequests"`
+	Behavior    string         `json:"behaviour"`
+	Floor       int            `json:"floor"`
+	Direction   string         `json:"direction"`
+	CabRequests [N_FLOORS]bool `json:"cabRequests"`
 }
 
 type HRAInput struct {
-    HallRequests    [N_FLOORS][2]bool           `json:"hallRequests"`
-    States          map[string]HRAElevState     `json:"states"`
+	HallRequests [N_FLOORS][2]bool       `json:"hallRequests"`
+	States       map[string]HRAElevState `json:"states"`
 }
-
-
 
 func RequestDistributor(
 	hallRequests [N_FLOORS][N_HALL_BUTTONS]Request_t,
@@ -47,12 +42,11 @@ func RequestDistributor(
 	for id, cabRequests := range allCabRequests {
 		elevatorInfo, ok := latestInfoElevators[id]
 		if !ok {
-			fmt.Println("id",id,"not in latestInfo")
-			return [N_FLOORS][N_BUTTONS]bool{}
+			continue
 		}
-		
+
 		if !elevatorInfo.Available {
-			continue 
+			continue
 		}
 
 		// TODO: check if id is in peerlist
@@ -64,50 +58,46 @@ func RequestDistributor(
 			}
 		}
 		inputStates[id] = HRAElevState{
-			Behavior: behaviourToString(elevatorInfo.Behaviour),
-			Floor: elevatorInfo.Floor,
-			Direction: directionToString(elevatorInfo.Direction),
+			Behavior:    behaviourToString(elevatorInfo.Behaviour),
+			Floor:       elevatorInfo.Floor,
+			Direction:   directionToString(elevatorInfo.Direction),
 			CabRequests: boolCabRequests,
 		}
 
 	}
 
+	input := HRAInput{
+		HallRequests: boolHallRequests,
+		States:       inputStates,
+	}
 
-    input := HRAInput{
-        HallRequests: boolHallRequests,
-        States: inputStates,
-    }
+	//fmt.Printf("%+v",input)
 
-    jsonBytes, err := json.Marshal(input)
-    if err != nil {
-        fmt.Println("json.Marshal error: ", err)
-        return [N_FLOORS][N_BUTTONS]bool{}
-    }
-    
-    ret, err := exec.Command(hraExecutablePath, "-i", string(jsonBytes), "--includeCab").CombinedOutput()
-    if err != nil {
-        fmt.Println("exec.Command error: ", err)
-        fmt.Println(string(ret))
-        return [N_FLOORS][N_BUTTONS]bool{}
-    }
-    
-    output := new(map[string][N_FLOORS][N_BUTTONS]bool)
-    err = json.Unmarshal(ret, &output)
-    if err != nil {
-        fmt.Println("json.Unmarshal error: ", err)
-        return [N_FLOORS][N_BUTTONS]bool{}
-    }
-        
-    //fmt.Printf("output: \n")
-    //for k, v := range *output {
-    //    fmt.Printf("%6v :  %+v\n", k, v)
-    //}
+	jsonBytes, err := json.Marshal(input)
+	if err != nil {
+		fmt.Println("json.Marshal error: ", err)
+		return [N_FLOORS][N_BUTTONS]bool{}
+	}
 
-	return (*output)[local_id] 
+	ret, err := exec.Command(hraExecutablePath, "-i", string(jsonBytes), "--includeCab").CombinedOutput()
+	if err != nil {
+		fmt.Println("exec.Command error: ", err)
+		fmt.Println(string(ret))
+		return [N_FLOORS][N_BUTTONS]bool{}
+	}
+
+	output := new(map[string][N_FLOORS][N_BUTTONS]bool)
+	err = json.Unmarshal(ret, &output)
+	if err != nil {
+		fmt.Println("json.Unmarshal error: ", err)
+		return [N_FLOORS][N_BUTTONS]bool{}
+	}
+
+	return (*output)[local_id]
 }
 
 func behaviourToString(b Behaviour_t) string {
-	switch(b){
+	switch b {
 	case IDLE:
 		return "idle"
 	case MOVING:

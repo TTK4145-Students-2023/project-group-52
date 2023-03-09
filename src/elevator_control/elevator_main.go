@@ -41,7 +41,7 @@ func RunElevatorControl(
 ) {
 	elevio.Init("localhost:15657", N_FLOORS)
 
-	
+
 	drv_Floors := make(chan int)
 	drv_obstr := make(chan bool)
 	
@@ -68,9 +68,7 @@ func RunElevatorControl(
 				switch elevator.Behaviour {
 				case DOOR_OPEN:
 					elevio.SetDoorOpenLamp(true)
-					if !elevio.IsObstruction() {
-						timer_start(door_timeout)
-					}
+					handleObstruction(door_timeout)
 				case MOVING:
 					elevio.SetMotorDirection(Direction_converter(elevator.Direction))
 				}
@@ -87,9 +85,7 @@ func RunElevatorControl(
 
 				elevator.Behaviour = DOOR_OPEN
 
-				if !elevio.IsObstruction() {
-					timer_start(door_timeout)
-				}
+				handleObstruction(door_timeout)
 
 			}
 			updateElevatorState(elevator)
@@ -112,9 +108,7 @@ func RunElevatorControl(
 
 				switch elevator.Behaviour {
 				case DOOR_OPEN:
-					if !elevio.IsObstruction() {
-						timer_start(door_timeout)
-					}
+					handleObstruction(door_timeout)
 				case MOVING, IDLE:
 					elevio.SetDoorOpenLamp(false)
 					elevio.SetMotorDirection(Direction_converter(elevator.Direction))
@@ -124,8 +118,10 @@ func RunElevatorControl(
 		case isObstructed := <-drv_obstr:
 			if elevator.Behaviour == DOOR_OPEN {
 				if isObstructed {
+					setElevatorAvailability(false)
 					timer_kill(door_timeout)
 				} else {
+					setElevatorAvailability(true)
 					timer_start(door_timeout)
 				}
 			}
@@ -149,6 +145,14 @@ func elevator_init(drv_Floors <-chan int) Elevator_t {
 	elevio.SetFloorIndicator(current_Floor)
 
 	return Elevator_t{Floor: current_Floor, Direction: DIR_STOP, Requests: [N_FLOORS][N_BUTTONS]bool{}, Behaviour: IDLE}
+}
+
+func handleObstruction(door_timeout *time.Timer){
+	if !elevio.IsObstruction() {
+		timer_start(door_timeout)
+	} else {
+		setElevatorAvailability(false)
+	}
 }
 
 func timer_start(t *time.Timer) {
