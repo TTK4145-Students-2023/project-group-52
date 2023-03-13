@@ -6,7 +6,6 @@ const (
 	COMPLETED RequestState_t = iota
 	NEW
 	ASSIGNED
-	UNKNOWN
 )
 
 type Request_t struct {

@@ -5,12 +5,6 @@ import (
 )
 
 func shouldAcceptMessage(local_request Request_t, message_request Request_t) bool {
-	if message_request.State == UNKNOWN {
-		return false
-	}
-	if local_request.State == UNKNOWN {
-		return true
-	}
 	if message_request.Count < local_request.Count {
 		return false
 	}

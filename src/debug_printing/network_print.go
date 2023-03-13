@@ -31,9 +31,6 @@ func RS_toString(state RequestState_t) string {
 	if state == NEW {
 		return "NEW"
 	}
-	if state == UNKNOWN {
-		return "UNK"
-	}
 	return "???"
 }
 
