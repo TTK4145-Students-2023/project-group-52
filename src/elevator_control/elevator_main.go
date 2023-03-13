@@ -1,7 +1,6 @@
 package elevator_control
 
 import (
-	//"fmt"
 	req "project/elevator_control/local_requests"
 	"project/hardware/elevio"
 	. "project/types"
@@ -103,7 +102,6 @@ func RunElevatorControl(
 					elevator.Requests[elevator.Floor][elevio.BT_Cab] = false
 					completed_request_chan <- elevio.ButtonEvent{Floor: elevator.Floor, Button: elevio.BT_Cab}
 				}
-
 				if req.ShouldClearUp(elevator) {
 					elevator.Requests[elevator.Floor][elevio.BT_HallUp] = false
 					completed_request_chan <- elevio.ButtonEvent{Floor: elevator.Floor, Button: elevio.BT_HallUp}
@@ -126,6 +124,7 @@ func RunElevatorControl(
 				}
 			}
 			updateElevatorState(elevator)
+
 		case isObstructed := <-drv_obstr:
 			if elevator.Behaviour == DOOR_OPEN {
 				if isObstructed {

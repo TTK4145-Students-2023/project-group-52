@@ -3,8 +3,7 @@ package request_control
 import (
 	"fmt"
 	"project/cost_function"
-
-	//printing "project/debug_printing"
+	printing "project/debug_printing"
 	elev "project/elevator_control"
 	"project/hardware/elevio"
 	"project/network/bcast"
@@ -17,7 +16,7 @@ const (
 	PEER_PORT          = 30052
 	MSG_PORT           = 30051
 	SEND_TIME_MS       = 200
-	DISTRIBUTE_TIME_MS = 500
+	DISTRIBUTE_TIME_MS = 1000
 )
 
 func RunRequestControl(
@@ -38,8 +37,8 @@ func RunRequestControl(
 	go bcast.Transmitter(MSG_PORT, messageTx)
 	go bcast.Receiver(MSG_PORT, messageRx)
 
-	send_timer := time.NewTimer(SEND_TIME_MS * time.Millisecond)
-	distribute_timer := time.NewTimer(DISTRIBUTE_TIME_MS * time.Millisecond)
+	send_ticker := time.NewTicker(SEND_TIME_MS * time.Millisecond)
+	distribute_ticker := time.NewTicker(DISTRIBUTE_TIME_MS * time.Millisecond)
 
 	peerList := []string{}
 	connectedToNetwork := false
@@ -118,8 +117,7 @@ func RunRequestControl(
 			} else {
 				hallRequests[btn.Floor][btn.Button] = request
 			}
-		case <-send_timer.C:
-			send_timer.Reset(SEND_TIME_MS * time.Millisecond)
+		case <-send_ticker.C:
 			available, behaviour, direction, floor := elev.GetElevatorState()
 
 			latestInfoElevators[local_id] = ElevatorInfo_t{
@@ -138,19 +136,18 @@ func RunRequestControl(
 				AllCabRequests:     allCabRequests,
 			}
 
-			//println(connectedToNetwork)
-			//printing.PrintMessage(newMessage)
-
 			if connectedToNetwork {
 				messageTx <- newMessage
 			}
-		case <-distribute_timer.C:
-			distribute_timer.Reset(DISTRIBUTE_TIME_MS * time.Millisecond)
-			requests_chan <- cost_function.RequestDistributor(hallRequests, allCabRequests, latestInfoElevators, peerList, local_id)
+		case <-distribute_ticker.C:
+			select{
+			case requests_chan <- cost_function.RequestDistributor(hallRequests, allCabRequests, latestInfoElevators, peerList, local_id):
+			default:
+				// Avoid deadlock
+			}
 
 		case p := <-peerUpdateCh:
 			peerList = p.Peers
-			fmt.Printf("Peerlist: %+v\n", peerList)
 
 			if p.New == local_id {
 				connectedToNetwork = true
@@ -162,6 +159,9 @@ func RunRequestControl(
 
 		case message := <-messageRx:
 			if message.Sender_id == local_id {
+				fmt.Printf("%+v\n",time.Now())
+				fmt.Printf("Peerlist: %+v\n", peerList)
+				printing.PrintMessage(message)
 				break
 			}
 

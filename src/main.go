@@ -3,11 +3,8 @@ package main
 import (
 	//"project/single-elevator/elevio"
 	"flag"
-	"fmt"
-	"os"
 	"project/elevator_control"
 	"project/hardware/elevio"
-	"project/network/localip"
 	"project/request_control"
 	. "project/types"
 )
@@ -20,12 +17,8 @@ func main() {
 	flag.Parse()
 
 	if id == "" {
-		localIP, err := localip.LocalIP()
-		if err != nil {
-			fmt.Println(err)
-			localIP = "DISCONNECTED"
-		}
-		id = fmt.Sprintf("peer-%s-%d", localIP, os.Getpid())
+		println("-id not provided")
+		return
 	}
 
 	requests_chan := make(chan [N_FLOORS][N_BUTTONS]bool)
