@@ -23,6 +23,7 @@ func RequestDistributor(
 	hallRequests [N_FLOORS][N_HALL_BUTTONS]Request_t,
 	allCabRequests map[string][N_FLOORS]Request_t,
 	latestInfoElevators map[string]ElevatorInfo_t,
+	peerList []string,
 	local_id string,
 ) [N_FLOORS][N_BUTTONS]bool {
 
@@ -49,7 +50,9 @@ func RequestDistributor(
 			continue
 		}
 
-		// TODO: check if id is in peerlist
+		if (!sliceContains(peerList, id) && id != local_id){
+			continue
+		}
 
 		boolCabRequests := [N_FLOORS]bool{}
 		for floor_num := 0; floor_num < N_FLOORS; floor_num++ {
@@ -66,12 +69,14 @@ func RequestDistributor(
 
 	}
 
+	if len(inputStates) == 0 {
+		return [N_FLOORS][N_BUTTONS]bool{}
+	}
+
 	input := HRAInput{
 		HallRequests: boolHallRequests,
 		States:       inputStates,
 	}
-
-	//fmt.Printf("%+v",input)
 
 	jsonBytes, err := json.Marshal(input)
 	if err != nil {
@@ -118,4 +123,13 @@ func directionToString(d Direction_t) string {
 		return "stop"
 	}
 	return "stop"
+}
+
+func sliceContains(slice []string, elem string) bool{
+	for _, element := range slice {
+		if element == elem{
+			return true
+		}
+	}
+	return false
 }

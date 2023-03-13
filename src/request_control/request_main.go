@@ -1,8 +1,10 @@
 package request_control
 
 import (
+	"fmt"
 	"project/cost_function"
-	printing "project/debug_printing"
+
+	//printing "project/debug_printing"
 	elev "project/elevator_control"
 	"project/hardware/elevio"
 	"project/network/bcast"
@@ -12,9 +14,10 @@ import (
 )
 
 const (
-	PEER_PORT    = 30052
-	MSG_PORT     = 30051
-	SEND_TIME_MS = 3000
+	PEER_PORT          = 30052
+	MSG_PORT           = 30051
+	SEND_TIME_MS       = 200
+	DISTRIBUTE_TIME_MS = 500
 )
 
 func RunRequestControl(
@@ -36,8 +39,10 @@ func RunRequestControl(
 	go bcast.Receiver(MSG_PORT, messageRx)
 
 	send_timer := time.NewTimer(SEND_TIME_MS * time.Millisecond)
+	distribute_timer := time.NewTimer(DISTRIBUTE_TIME_MS * time.Millisecond)
 
-	peerList := []string{local_id}
+	peerList := []string{}
+	connectedToNetwork := false
 
 	hallRequests := [N_FLOORS][N_HALL_BUTTONS]Request_t{}
 	allCabRequests := make(map[string][N_FLOORS]Request_t)
@@ -61,19 +66,26 @@ func RunRequestControl(
 			if btn.Button == elevio.BT_Cab {
 				request = allCabRequests[local_id][btn.Floor]
 			} else {
+				if !connectedToNetwork {
+					break
+				}
 				request = hallRequests[btn.Floor][btn.Button]
 			}
-			isRequestAssigned := false
 
 			switch request.State {
 			case COMPLETED:
 				request.State = NEW
 				request.AwareList = []string{local_id}
-
 				if is_subset(peerList, request.AwareList) {
 					request.State = ASSIGNED
 					request.AwareList = []string{local_id}
-					isRequestAssigned = true
+					elevio.SetButtonLamp(btn.Button, btn.Floor, true)
+				}
+			case NEW:
+				if is_subset(peerList, request.AwareList) {
+					request.State = ASSIGNED
+					request.AwareList = []string{local_id}
+					elevio.SetButtonLamp(btn.Button, btn.Floor, true)
 				}
 			}
 
@@ -85,10 +97,6 @@ func RunRequestControl(
 				hallRequests[btn.Floor][btn.Button] = request
 			}
 
-			if isRequestAssigned {
-				requests_chan <- cost_function.RequestDistributor(hallRequests, allCabRequests, latestInfoElevators, local_id)
-				elevio.SetButtonLamp(btn.Button, btn.Floor, true)
-			}
 		case btn := <-completed_request_chan:
 			request := Request_t{}
 			if btn.Button == elevio.BT_Cab {
@@ -114,8 +122,6 @@ func RunRequestControl(
 			send_timer.Reset(SEND_TIME_MS * time.Millisecond)
 			available, behaviour, direction, floor := elev.GetElevatorState()
 
-			availableChanged := latestInfoElevators[local_id].Available != available
-
 			latestInfoElevators[local_id] = ElevatorInfo_t{
 				Available: available,
 				Behaviour: behaviour,
@@ -132,27 +138,35 @@ func RunRequestControl(
 				AllCabRequests:     allCabRequests,
 			}
 
-			if availableChanged {
-				requests_chan <- cost_function.RequestDistributor(hallRequests, allCabRequests, latestInfoElevators, local_id)
-			}
+			//println(connectedToNetwork)
+			//printing.PrintMessage(newMessage)
 
-			messageTx <- newMessage
+			if connectedToNetwork {
+				messageTx <- newMessage
+			}
+		case <-distribute_timer.C:
+			distribute_timer.Reset(DISTRIBUTE_TIME_MS * time.Millisecond)
+			requests_chan <- cost_function.RequestDistributor(hallRequests, allCabRequests, latestInfoElevators, peerList, local_id)
+
 		case p := <-peerUpdateCh:
 			peerList = p.Peers
-			// if len(p.Lost) > 0 {
-			// 	for _,id := range p.Lost {
-			// 		latestInfoElevators[id].Available = false
-			// 	}
-			// }
+			fmt.Printf("Peerlist: %+v\n", peerList)
+
+			if p.New == local_id {
+				connectedToNetwork = true
+			}
+
+			if is_subset([]string{local_id}, p.Lost) {
+				connectedToNetwork = false
+			}
+
 		case message := <-messageRx:
 			if message.Sender_id == local_id {
-				printing.PrintMessage(message)
 				break
 			}
 
-			shouldRedistributeRequests := false
-			if latestInfoElevators[message.Sender_id].Available != message.Available {
-				shouldRedistributeRequests = true
+			if !connectedToNetwork { //avoid race-conditions with peer messages
+				break
 			}
 
 			latestInfoElevators[message.Sender_id] = ElevatorInfo_t{
@@ -164,7 +178,7 @@ func RunRequestControl(
 
 			for id, senderCabRequests := range message.AllCabRequests {
 				if _, id_exist := allCabRequests[id]; !id_exist {
-					for floor := range(senderCabRequests){
+					for floor := range senderCabRequests {
 						senderCabRequests[floor].AwareList = addToAwareList(senderCabRequests[floor].AwareList, local_id)
 					}
 					allCabRequests[id] = senderCabRequests
@@ -174,7 +188,6 @@ func RunRequestControl(
 					if !shouldAcceptMessage(allCabRequests[id][floor], senderCabRequests[floor]) {
 						continue
 					}
-					shouldRedistributeRequests = true
 
 					accepted_request := senderCabRequests[floor]
 					accepted_request.AwareList = addToAwareList(accepted_request.AwareList, local_id)
@@ -199,7 +212,6 @@ func RunRequestControl(
 					if !shouldAcceptMessage(hallRequests[floor][btn], message.SenderHallRequests[floor][btn]) {
 						continue
 					}
-					shouldRedistributeRequests = true
 
 					accepted_request := message.SenderHallRequests[floor][btn]
 					accepted_request.AwareList = addToAwareList(accepted_request.AwareList, local_id)
@@ -222,9 +234,6 @@ func RunRequestControl(
 				}
 			}
 
-			if shouldRedistributeRequests {
-				requests_chan <- cost_function.RequestDistributor(hallRequests, allCabRequests, latestInfoElevators, local_id)
-			}
 		}
 	}
 }

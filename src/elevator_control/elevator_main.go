@@ -57,7 +57,6 @@ func RunElevatorControl(
 	mobility_timeout := time.NewTimer(0)
 	timer_kill(mobility_timeout)
 
-
 	for {
 		select {
 		case requests := <-requests_chan:
@@ -80,10 +79,10 @@ func RunElevatorControl(
 		case newFloor := <-drv_Floors:
 			timer_start(mobility_timeout, MOBILITY_TIMOEUT_SEC)
 			setElevatorAvailability(true)
-			
+
 			elevator.Floor = newFloor
 			elevio.SetFloorIndicator(elevator.Floor)
-			
+
 			if elevator.Behaviour == MOVING && req.ShouldStop(elevator) {
 				timer_kill(mobility_timeout)
 
