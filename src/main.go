@@ -11,7 +11,6 @@ import (
 	//"project/single-elevator/elevio"
 	"flag"
 	"project/elevator_control"
-	"project/hardware/elevio"
 	"project/request_control"
 	. "project/types"
 )
@@ -19,20 +18,20 @@ import (
 func main() {
 	// Our id can be anything. Here we pass it on the command line, using
 	//  `go run main.go -id=our_id`
-	var id string
-	flag.StringVar(&id, "id", "", "id of this peer")
+	var local_id string
+	flag.StringVar(&local_id, "id", "", "id of this peer")
 	flag.Parse()
 
-	if id == "" {
+	if local_id == "" {
 		println("-id not provided")
 		return
 	}
 
-	requests_chan := make(chan [N_FLOORS][N_BUTTONS]bool)
-	completed_request_chan := make(chan elevio.ButtonEvent)
+	requestsCh := make(chan [N_FLOORS][N_BUTTONS]bool)
+	completedRequestCh := make(chan ButtonEvent_t)
 
-	go elevator_control.RunElevatorControl(requests_chan, completed_request_chan)
-	go request_control.RunRequestControl(id, requests_chan, completed_request_chan)
+	go elevator_control.RunElevatorControl(requestsCh, completedRequestCh)
+	go request_control.RunRequestControl(local_id, requestsCh, completedRequestCh)
 
 	select {} //keeps main from exiting without using CPU power
 }

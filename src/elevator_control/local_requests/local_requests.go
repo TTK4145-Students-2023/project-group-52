@@ -1,7 +1,6 @@
 package local_requests
 
 import (
-	"project/hardware/elevio"
 	. "project/types"
 )
 
@@ -36,14 +35,14 @@ func isRequestsHere(e Elevator_t) bool {
 	return false
 }
 
-func getRequestTypeHere(e Elevator_t) elevio.ButtonType {
+func getRequestTypeHere(e Elevator_t) ButtonType_t {
 	for btn := 0; btn < N_BUTTONS; btn++ {
 		if e.Requests[e.Floor][btn] {
-			return elevio.ButtonType(btn)
+			return ButtonType_t(btn)
 		}
 	}
 	print("buttonType not found")
-	return elevio.BT_Cab
+	return BT_Cab
 }
 
 func ChooseNewDirectionAndBehavior(e Elevator_t) (Direction_t, Behaviour_t) {
@@ -71,11 +70,11 @@ func ChooseNewDirectionAndBehavior(e Elevator_t) (Direction_t, Behaviour_t) {
 	case DIR_STOP:
 		if isRequestsHere(e) {
 			switch getRequestTypeHere(e) {
-			case elevio.BT_HallUp:
+			case BT_HallUp:
 				return DIR_UP, DOOR_OPEN
-			case elevio.BT_HallDown:
+			case BT_HallDown:
 				return DIR_DOWN, DOOR_OPEN
-			case elevio.BT_Cab:
+			case BT_Cab:
 				return DIR_STOP, DOOR_OPEN
 			}
 		} else if isRequestsAbove(e) {
@@ -92,20 +91,20 @@ func ChooseNewDirectionAndBehavior(e Elevator_t) (Direction_t, Behaviour_t) {
 func ShouldStop(e Elevator_t) bool {
 	switch e.Direction {
 	case DIR_DOWN:
-		return e.Requests[e.Floor][elevio.BT_HallDown] || e.Requests[e.Floor][elevio.BT_Cab] || !isRequestsBelow(e)
+		return e.Requests[e.Floor][BT_HallDown] || e.Requests[e.Floor][BT_Cab] || !isRequestsBelow(e)
 	case DIR_UP:
-		return e.Requests[e.Floor][elevio.BT_HallUp] || e.Requests[e.Floor][elevio.BT_Cab] || !isRequestsAbove(e)
+		return e.Requests[e.Floor][BT_HallUp] || e.Requests[e.Floor][BT_Cab] || !isRequestsAbove(e)
 	}
 
 	return true
 }
 
 func ShouldClearCab(e Elevator_t) bool {
-	return e.Requests[e.Floor][elevio.BT_Cab]
+	return e.Requests[e.Floor][BT_Cab]
 }
 
 func ShouldClearUp(e Elevator_t) bool {
-	if !e.Requests[e.Floor][elevio.BT_HallUp] {
+	if !e.Requests[e.Floor][BT_HallUp] {
 		return false
 	}
 
@@ -113,14 +112,14 @@ func ShouldClearUp(e Elevator_t) bool {
 	case DIR_UP, DIR_STOP:
 		return true
 	case DIR_DOWN:
-		return !isRequestsBelow(e) && !e.Requests[e.Floor][elevio.BT_HallDown]
+		return !isRequestsBelow(e) && !e.Requests[e.Floor][BT_HallDown]
 	}
 
 	return false
 }
 
 func ShouldClearDown(e Elevator_t) bool {
-	if !e.Requests[e.Floor][elevio.BT_HallDown] {
+	if !e.Requests[e.Floor][BT_HallDown] {
 		return false
 	}
 
@@ -128,7 +127,7 @@ func ShouldClearDown(e Elevator_t) bool {
 	case DIR_DOWN, DIR_STOP:
 		return true
 	case DIR_UP:
-		return !isRequestsAbove(e) && !e.Requests[e.Floor][elevio.BT_HallUp]
+		return !isRequestsAbove(e) && !e.Requests[e.Floor][BT_HallUp]
 	}
 
 	return false

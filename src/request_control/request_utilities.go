@@ -11,8 +11,9 @@ func shouldAcceptMessage(local_request Request_t, message_request Request_t) boo
 	if message_request.Count > local_request.Count {
 		return true
 	}
+	
 	if message_request.State == local_request.State && is_subset(message_request.AwareList, local_request.AwareList) {
-		// count is equal
+		// no new info
 		return false
 	}
 
@@ -24,7 +25,6 @@ func shouldAcceptMessage(local_request Request_t, message_request Request_t) boo
 		case NEW:
 			return true
 		case ASSIGNED:
-			println("FROM COMPLETED TO ASSIGNED (should not happen)")
 			return true
 		}
 	case NEW:
@@ -62,6 +62,8 @@ func is_subset(subset []string, superset []string) bool {
 	}
 	return len(checkset) == 0 //this implies that set is subset of superset
 }
+
+
 
 func addToAwareList(AwareList []string, id string) []string {
 	for i := range AwareList {

@@ -30,10 +30,10 @@ func RequestDistributor(
 	hraExecutablePath := "hall_request_assigner"
 
 	boolHallRequests := [N_FLOORS][N_HALL_BUTTONS]bool{}
-	for floor_num := 0; floor_num < N_FLOORS; floor_num++ {
-		for button_num := 0; button_num < N_HALL_BUTTONS; button_num++ {
-			if hallRequests[floor_num][button_num].State == ASSIGNED {
-				boolHallRequests[floor_num][button_num] = true
+	for floor := 0; floor < N_FLOORS; floor++ {
+		for button := 0; button < N_HALL_BUTTONS; button++ {
+			if hallRequests[floor][button].State == ASSIGNED {
+				boolHallRequests[floor][button] = true
 			}
 		}
 	}
@@ -55,9 +55,9 @@ func RequestDistributor(
 		}
 
 		boolCabRequests := [N_FLOORS]bool{}
-		for floor_num := 0; floor_num < N_FLOORS; floor_num++ {
-			if cabRequests[floor_num].State == ASSIGNED {
-				boolCabRequests[floor_num] = true
+		for floor := 0; floor < N_FLOORS; floor++ {
+			if cabRequests[floor].State == ASSIGNED {
+				boolCabRequests[floor] = true
 			}
 		}
 		inputStates[id] = HRAElevState{

@@ -3,9 +3,9 @@ package request_control
 import (
 	"fmt"
 	"project/cost_function"
-	printing "project/debug_printing"
+	"project/debug_printing"
 	elev "project/elevator_control"
-	"project/hardware/elevio"
+	"project/hardware"
 	"project/network/bcast"
 	"project/network/peers"
 	. "project/types"
@@ -21,11 +21,11 @@ const (
 
 func RunRequestControl(
 	local_id string,
-	requests_chan chan<- [N_FLOORS][N_BUTTONS]bool,
-	completed_request_chan <-chan elevio.ButtonEvent,
+	requestsCh chan<- [N_FLOORS][N_BUTTONS]bool,
+	completedRequestCh <-chan ButtonEvent_t,
 ) {
-	drv_buttons := make(chan elevio.ButtonEvent)
-	go elevio.PollButtons(drv_buttons)
+	buttonEventCh := make(chan ButtonEvent_t)
+	go elevio.PollButtons(buttonEventCh)
 
 	messageTx := make(chan NetworkMessage_t)
 	messageRx := make(chan NetworkMessage_t)
@@ -37,8 +37,8 @@ func RunRequestControl(
 	go bcast.Transmitter(MSG_PORT, messageTx)
 	go bcast.Receiver(MSG_PORT, messageRx)
 
-	send_ticker := time.NewTicker(SEND_TIME_MS * time.Millisecond)
-	distribute_ticker := time.NewTicker(DISTRIBUTE_TIME_MS * time.Millisecond)
+	sendTicker := time.NewTicker(SEND_TIME_MS * time.Millisecond)
+	distributeTicker := time.NewTicker(DISTRIBUTE_TIME_MS * time.Millisecond)
 
 	peerList := []string{}
 	connectedToNetwork := false
@@ -60,9 +60,9 @@ func RunRequestControl(
 
 	for {
 		select {
-		case btn := <-drv_buttons:
+		case btn := <-buttonEventCh:
 			request := Request_t{}
-			if btn.Button == elevio.BT_Cab {
+			if btn.Button == BT_Cab {
 				request = allCabRequests[local_id][btn.Floor]
 			} else {
 				if !connectedToNetwork {
@@ -88,7 +88,7 @@ func RunRequestControl(
 				}
 			}
 
-			if btn.Button == elevio.BT_Cab {
+			if btn.Button == BT_Cab {
 				localCabRequest := allCabRequests[local_id]
 				localCabRequest[btn.Floor] = request
 				allCabRequests[local_id] = localCabRequest
@@ -96,9 +96,9 @@ func RunRequestControl(
 				hallRequests[btn.Floor][btn.Button] = request
 			}
 
-		case btn := <-completed_request_chan:
+		case btn := <-completedRequestCh:
 			request := Request_t{}
-			if btn.Button == elevio.BT_Cab {
+			if btn.Button == BT_Cab {
 				request = allCabRequests[local_id][btn.Floor]
 			} else {
 				request = hallRequests[btn.Floor][btn.Button]
@@ -110,14 +110,14 @@ func RunRequestControl(
 				request.Count++
 				elevio.SetButtonLamp(btn.Button, btn.Floor, false)
 			}
-			if btn.Button == elevio.BT_Cab {
+			if btn.Button == BT_Cab {
 				localCabRequest := allCabRequests[local_id]
 				localCabRequest[btn.Floor] = request
 				allCabRequests[local_id] = localCabRequest
 			} else {
 				hallRequests[btn.Floor][btn.Button] = request
 			}
-		case <-send_ticker.C:
+		case <-sendTicker.C:
 			available, behaviour, direction, floor := elev.GetElevatorState()
 
 			latestInfoElevators[local_id] = ElevatorInfo_t{
@@ -139,9 +139,9 @@ func RunRequestControl(
 			if connectedToNetwork {
 				messageTx <- newMessage
 			}
-		case <-distribute_ticker.C:
+		case <-distributeTicker.C:
 			select{
-			case requests_chan <- cost_function.RequestDistributor(hallRequests, allCabRequests, latestInfoElevators, peerList, local_id):
+			case requestsCh <- cost_function.RequestDistributor(hallRequests, allCabRequests, latestInfoElevators, peerList, local_id):
 			default:
 				// Avoid deadlock
 			}
@@ -198,7 +198,7 @@ func RunRequestControl(
 					}
 
 					if id == local_id && accepted_request.State == ASSIGNED {
-						elevio.SetButtonLamp(elevio.BT_Cab, floor, true)
+						elevio.SetButtonLamp(BT_Cab, floor, true)
 					}
 
 					cabRequests := allCabRequests[id]
@@ -218,22 +218,21 @@ func RunRequestControl(
 
 					switch accepted_request.State {
 					case COMPLETED:
-						elevio.SetButtonLamp(elevio.ButtonType(btn), floor, false)
+						elevio.SetButtonLamp(ButtonType_t(btn), floor, false)
 					case NEW:
-						elevio.SetButtonLamp(elevio.ButtonType(btn), floor, false)
+						elevio.SetButtonLamp(ButtonType_t(btn), floor, false)
 						if is_subset(peerList, accepted_request.AwareList) {
 							accepted_request.State = ASSIGNED
 							accepted_request.AwareList = []string{local_id}
-							elevio.SetButtonLamp(elevio.ButtonType(btn), floor, true)
+							elevio.SetButtonLamp(ButtonType_t(btn), floor, true)
 						}
 					case ASSIGNED:
-						elevio.SetButtonLamp(elevio.ButtonType(btn), floor, true)
+						elevio.SetButtonLamp(ButtonType_t(btn), floor, true)
 					}
 
 					hallRequests[floor][btn] = accepted_request
 				}
 			}
-
 		}
 	}
 }
