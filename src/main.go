@@ -1,3 +1,10 @@
+/*
+TTK4145 elevator project
+spring 2023
+Anders Mørk, Erlend Dahle, Filip Strømstad
+*/
+
+
 package main
 
 import (
