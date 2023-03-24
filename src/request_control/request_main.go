@@ -1,9 +1,9 @@
 package request_control
 
 import (
-	"fmt"
+	//"fmt"
 	"project/cost_function"
-	"project/debug_printing"
+	//"project/debug_printing"
 	elev "project/elevator_control"
 	"project/hardware"
 	"project/network/bcast"
@@ -159,9 +159,9 @@ func RunRequestControl(
 
 		case message := <-messageRx:
 			if message.Sender_id == local_id {
-				fmt.Printf("%+v\n",time.Now())
-				fmt.Printf("Peerlist: %+v\n", peerList)
-				printing.PrintMessage(message)
+				// fmt.Printf("%+v\n",time.Now())
+				// fmt.Printf("Peerlist: %+v\n", peerList)
+				// printing.PrintMessage(message)
 				break
 			}
 
