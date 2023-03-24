@@ -33,13 +33,11 @@ func MusicPlayer(enableCh <-chan bool){
 	defer p.Close()
 
 	for{
-		select {
-		case enable := <-enableCh:
-			if enable {
-				p.Play()
-			} else {
-				p.Reset()
-			}
+		enable := <-enableCh
+		if enable {
+			p.Play()
+		} else {
+			p.Pause()
 		}
 	}
 }

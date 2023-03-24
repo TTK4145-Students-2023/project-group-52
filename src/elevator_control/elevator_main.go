@@ -5,6 +5,7 @@ import (
 	"project/hardware"
 	. "project/types"
 	"time"
+	"project/music"
 )
 
 const DOOR_TIMEOUT_SEC = 3
@@ -33,6 +34,9 @@ func RunElevatorControl(
 	mobility_timeout := time.NewTimer(0)
 	timerKill(mobility_timeout)
 
+	musicEnabaleCh := make(chan bool)
+	go music.MusicPlayer(musicEnabaleCh)
+
 	for {
 		select {
 		case requests := <-requestsCh:
@@ -49,6 +53,7 @@ func RunElevatorControl(
 				case MOVING:
 					timerRestart(mobility_timeout, MOBILITY_TIMOEUT_SEC)
 					elevio.SetMotorDirection(directionConverter(elevator.Direction))
+					musicEnabaleCh <- true
 				}
 			}
 			updateElevatorState(elevator)
@@ -63,6 +68,7 @@ func RunElevatorControl(
 				timerKill(mobility_timeout)
 
 				elevio.SetMotorDirection(MD_Stop)
+				musicEnabaleCh <- false
 
 				if req.ShouldClearCab(elevator) || req.ShouldClearUp(elevator) || req.ShouldClearDown(elevator) {
 					elevio.SetDoorOpenLamp(true)
@@ -101,6 +107,7 @@ func RunElevatorControl(
 				elevio.SetDoorOpenLamp(false)
 				timerRestart(mobility_timeout, MOBILITY_TIMOEUT_SEC)
 				elevio.SetMotorDirection(directionConverter(elevator.Direction))
+				musicEnabaleCh <- true
 			}
 			updateElevatorState(elevator)
 
