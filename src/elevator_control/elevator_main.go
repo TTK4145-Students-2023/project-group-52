@@ -17,8 +17,6 @@ func RunElevatorControl(
 	requestsCh <-chan [N_FLOORS][N_BUTTONS]bool,
 	completedRequestCh chan<- ButtonEvent_t,
 ) {
-	elevio.Init("localhost:15657", N_FLOORS)
-
 	drv_Floors := make(chan int)
 	drv_obstr := make(chan bool)
 
