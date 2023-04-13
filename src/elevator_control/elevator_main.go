@@ -56,7 +56,7 @@ func RunElevatorControl(
 			case MOVING:
 				timerRestart(mobilityTimeout, MOBILITY_TIMOEUT_SEC)
 				elevio.SetMotorDirection(directionConverter(elevator.Direction))
-        musicEnabaleCh <- true
+        		musicEnabaleCh <- true
 			}
 
 			updateElevatorInfo(elevator)
