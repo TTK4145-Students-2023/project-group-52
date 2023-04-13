@@ -1,11 +1,10 @@
 package request_control
 
 import (
-	//"fmt"
 	"project/cost_function"
-	//"project/debug_printing"
+	printing "project/debug_printing"
 	elev "project/elevator_control"
-	"project/hardware"
+	elevio "project/hardware"
 	"project/network/bcast"
 	"project/network/peers"
 	. "project/types"
@@ -20,7 +19,7 @@ const (
 )
 
 func RunRequestControl(
-	local_id string,
+	localID string,
 	requestsCh chan<- [N_FLOORS][N_BUTTONS]bool,
 	completedRequestCh <-chan ButtonEvent_t,
 ) {
@@ -30,9 +29,8 @@ func RunRequestControl(
 	messageTx := make(chan NetworkMessage_t)
 	messageRx := make(chan NetworkMessage_t)
 	peerUpdateCh := make(chan peers.PeerUpdate)
-	peerTxEnable := make(chan bool)
 
-	go peers.Transmitter(PEER_PORT, local_id, peerTxEnable)
+	go peers.Transmitter(PEER_PORT, localID, nil)
 	go peers.Receiver(PEER_PORT, peerUpdateCh)
 	go bcast.Transmitter(MSG_PORT, messageTx)
 	go bcast.Receiver(MSG_PORT, messageRx)
@@ -47,23 +45,15 @@ func RunRequestControl(
 	allCabRequests := make(map[string][N_FLOORS]Request_t)
 	latestInfoElevators := make(map[string]ElevatorInfo_t)
 
-	allCabRequests[local_id] = [N_FLOORS]Request_t{}
-	{
-		available, behaviour, direction, floor := elev.GetElevatorState()
-		latestInfoElevators[local_id] = ElevatorInfo_t{
-			Available: available,
-			Behaviour: behaviour,
-			Floor:     floor,
-			Direction: direction,
-		}
-	}
+	allCabRequests[localID] = [N_FLOORS]Request_t{}
+	latestInfoElevators[localID] = elev.GetElevatorInfo()
 
 	for {
 		select {
 		case btn := <-buttonEventCh:
 			request := Request_t{}
 			if btn.Button == BT_Cab {
-				request = allCabRequests[local_id][btn.Floor]
+				request = allCabRequests[localID][btn.Floor]
 			} else {
 				if !connectedToNetwork {
 					break
@@ -74,24 +64,24 @@ func RunRequestControl(
 			switch request.State {
 			case COMPLETED:
 				request.State = NEW
-				request.AwareList = []string{local_id}
-				if is_subset(peerList, request.AwareList) {
+				request.AwareList = []string{localID}
+				if isSubset(peerList, request.AwareList) {
 					request.State = ASSIGNED
-					request.AwareList = []string{local_id}
+					request.AwareList = []string{localID}
 					elevio.SetButtonLamp(btn.Button, btn.Floor, true)
 				}
 			case NEW:
-				if is_subset(peerList, request.AwareList) {
+				if isSubset(peerList, request.AwareList) {
 					request.State = ASSIGNED
-					request.AwareList = []string{local_id}
+					request.AwareList = []string{localID}
 					elevio.SetButtonLamp(btn.Button, btn.Floor, true)
 				}
 			}
 
 			if btn.Button == BT_Cab {
-				localCabRequest := allCabRequests[local_id]
+				localCabRequest := allCabRequests[localID]
 				localCabRequest[btn.Floor] = request
-				allCabRequests[local_id] = localCabRequest
+				allCabRequests[localID] = localCabRequest
 			} else {
 				hallRequests[btn.Floor][btn.Button] = request
 			}
@@ -99,39 +89,37 @@ func RunRequestControl(
 		case btn := <-completedRequestCh:
 			request := Request_t{}
 			if btn.Button == BT_Cab {
-				request = allCabRequests[local_id][btn.Floor]
+				request = allCabRequests[localID][btn.Floor]
 			} else {
 				request = hallRequests[btn.Floor][btn.Button]
 			}
+
 			switch request.State {
 			case ASSIGNED:
 				request.State = COMPLETED
-				request.AwareList = []string{local_id}
+				request.AwareList = []string{localID}
 				request.Count++
 				elevio.SetButtonLamp(btn.Button, btn.Floor, false)
 			}
+
 			if btn.Button == BT_Cab {
-				localCabRequest := allCabRequests[local_id]
+				localCabRequest := allCabRequests[localID]
 				localCabRequest[btn.Floor] = request
-				allCabRequests[local_id] = localCabRequest
+				allCabRequests[localID] = localCabRequest
 			} else {
 				hallRequests[btn.Floor][btn.Button] = request
 			}
-		case <-sendTicker.C:
-			available, behaviour, direction, floor := elev.GetElevatorState()
 
-			latestInfoElevators[local_id] = ElevatorInfo_t{
-				Available: available,
-				Behaviour: behaviour,
-				Floor:     floor,
-				Direction: direction,
-			}
+		case <-sendTicker.C:
+			info := elev.GetElevatorInfo()
+			latestInfoElevators[localID] = info
+
 			newMessage := NetworkMessage_t{
-				Sender_id:          local_id,
-				Available:          available,
-				Behaviour:          behaviour,
-				Floor:              floor,
-				Direction:          direction,
+				SenderID:           localID,
+				Available:          info.Available,
+				Behaviour:          info.Behaviour,
+				Floor:              info.Floor,
+				Direction:          info.Direction,
 				SenderHallRequests: hallRequests,
 				AllCabRequests:     allCabRequests,
 			}
@@ -139,9 +127,10 @@ func RunRequestControl(
 			if connectedToNetwork {
 				messageTx <- newMessage
 			}
+
 		case <-distributeTicker.C:
-			select{
-			case requestsCh <- cost_function.RequestDistributor(hallRequests, allCabRequests, latestInfoElevators, peerList, local_id):
+			select {
+			case requestsCh <- cost_function.RequestDistributor(hallRequests, allCabRequests, latestInfoElevators, peerList, localID):
 			default:
 				// Avoid deadlock
 			}
@@ -149,88 +138,90 @@ func RunRequestControl(
 		case p := <-peerUpdateCh:
 			peerList = p.Peers
 
-			if p.New == local_id {
+			if p.New == localID {
 				connectedToNetwork = true
 			}
 
-			if is_subset([]string{local_id}, p.Lost) {
+			if isSubset([]string{localID}, p.Lost) {
 				connectedToNetwork = false
 			}
 
 		case message := <-messageRx:
-			if message.Sender_id == local_id {
-				// fmt.Printf("%+v\n",time.Now())
-				// fmt.Printf("Peerlist: %+v\n", peerList)
-				// printing.PrintMessage(message)
+			if message.SenderID == localID {
+				printing.PrintMessage(message)
 				break
 			}
 
-			if !connectedToNetwork { //avoid race-conditions with peer messages
+			if !connectedToNetwork {
+				//avoid race-conditions with peer messages
 				break
 			}
 
-			latestInfoElevators[message.Sender_id] = ElevatorInfo_t{
+			latestInfoElevators[message.SenderID] = ElevatorInfo_t{
 				Available: message.Available,
 				Behaviour: message.Behaviour,
 				Direction: message.Direction,
 				Floor:     message.Floor,
 			}
 
-			for id, senderCabRequests := range message.AllCabRequests {
-				if _, id_exist := allCabRequests[id]; !id_exist {
-					for floor := range senderCabRequests {
-						senderCabRequests[floor].AwareList = addToAwareList(senderCabRequests[floor].AwareList, local_id)
+			for id, cabRequests := range message.AllCabRequests {
+
+				if _, idExist := allCabRequests[id]; !idExist {
+					// First informaton about this elevator
+					for floor := range cabRequests {
+						cabRequests[floor].AwareList = addToAwareList(cabRequests[floor].AwareList, localID)
 					}
-					allCabRequests[id] = senderCabRequests
+					allCabRequests[id] = cabRequests
 					continue
 				}
+
 				for floor := 0; floor < N_FLOORS; floor++ {
-					if !shouldAcceptMessage(allCabRequests[id][floor], senderCabRequests[floor]) {
+					if !shouldAcceptRequest(allCabRequests[id][floor], cabRequests[floor]) {
 						continue
 					}
 
-					accepted_request := senderCabRequests[floor]
-					accepted_request.AwareList = addToAwareList(accepted_request.AwareList, local_id)
+					acceptedRequest := cabRequests[floor]
+					acceptedRequest.AwareList = addToAwareList(acceptedRequest.AwareList, localID)
 
-					if accepted_request.State == NEW && is_subset(peerList, accepted_request.AwareList) {
-						accepted_request.State = ASSIGNED
-						accepted_request.AwareList = []string{local_id}
+					if acceptedRequest.State == NEW && isSubset(peerList, acceptedRequest.AwareList) {
+						acceptedRequest.State = ASSIGNED
+						acceptedRequest.AwareList = []string{localID}
 					}
 
-					if id == local_id && accepted_request.State == ASSIGNED {
+					if id == localID && acceptedRequest.State == ASSIGNED {
 						elevio.SetButtonLamp(BT_Cab, floor, true)
 					}
 
-					cabRequests := allCabRequests[id]
-					cabRequests[floor] = accepted_request
-					allCabRequests[id] = cabRequests
+					tmpCabRequests := allCabRequests[id]
+					tmpCabRequests[floor] = acceptedRequest
+					allCabRequests[id] = tmpCabRequests
 				}
 			}
 
 			for floor := 0; floor < N_FLOORS; floor++ {
 				for btn := 0; btn < N_HALL_BUTTONS; btn++ {
-					if !shouldAcceptMessage(hallRequests[floor][btn], message.SenderHallRequests[floor][btn]) {
+					if !shouldAcceptRequest(hallRequests[floor][btn], message.SenderHallRequests[floor][btn]) {
 						continue
 					}
 
-					accepted_request := message.SenderHallRequests[floor][btn]
-					accepted_request.AwareList = addToAwareList(accepted_request.AwareList, local_id)
+					acceptedRequest := message.SenderHallRequests[floor][btn]
+					acceptedRequest.AwareList = addToAwareList(acceptedRequest.AwareList, localID)
 
-					switch accepted_request.State {
+					switch acceptedRequest.State {
 					case COMPLETED:
 						elevio.SetButtonLamp(ButtonType_t(btn), floor, false)
 					case NEW:
 						elevio.SetButtonLamp(ButtonType_t(btn), floor, false)
-						if is_subset(peerList, accepted_request.AwareList) {
-							accepted_request.State = ASSIGNED
-							accepted_request.AwareList = []string{local_id}
+						if isSubset(peerList, acceptedRequest.AwareList) {
+							acceptedRequest.State = ASSIGNED
+							acceptedRequest.AwareList = []string{localID}
 							elevio.SetButtonLamp(ButtonType_t(btn), floor, true)
 						}
 					case ASSIGNED:
 						elevio.SetButtonLamp(ButtonType_t(btn), floor, true)
 					}
 
-					hallRequests[floor][btn] = accepted_request
+					hallRequests[floor][btn] = acceptedRequest
 				}
 			}
 		}

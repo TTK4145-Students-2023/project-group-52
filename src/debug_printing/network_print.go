@@ -22,27 +22,26 @@ func REQ_toString(requests [N_HALL_BUTTONS]Request_t, cabRequest Request_t) stri
 }
 
 func RS_toString(state RequestState_t) string {
-	if state == COMPLETED {
+	switch(state) {
+	case COMPLETED:
 		return "COM"
-	}
-	if state == ASSIGNED {
+	case ASSIGNED:
 		return "ASS"
-	}
-	if state == NEW {
+	case NEW:
 		return "NEW"
 	}
 	return "???"
 }
 
 func PrintMessage(message NetworkMessage_t) {
-	fmt.Printf("id: %+v\n", message.Sender_id)
+	fmt.Printf("id: %+v\n", message.SenderID)
 	fmt.Printf("behaviour: %+v\n", Eb_toString(message.Behaviour))
 	fmt.Printf("floor: %+v\n", message.Floor)
 	fmt.Printf("direction: %+v\n", Ed_toString(message.Direction))
 	fmt.Printf("available: %+v\n", message.Available)
 	fmt.Printf("    Up                                         Down                                       Cab\n")
 	for i, rq := range message.SenderHallRequests {
-		fmt.Printf("%d - %s\n", i+1, REQ_toString(rq, message.AllCabRequests[message.Sender_id][i]))
+		fmt.Printf("%d - %s\n", i+1, REQ_toString(rq, message.AllCabRequests[message.SenderID][i]))
 	}
 	fmt.Printf("###################################################################################################################################|\n")
 }

@@ -6,26 +6,24 @@ import (
 )
 
 func Eb_toString(behaviour Behaviour_t) string {
-	if behaviour == IDLE {
+	switch(behaviour){
+	case IDLE:
 		return "IDLE"
-	}
-	if behaviour == DOOR_OPEN {
+	case DOOR_OPEN:
 		return "DOOR_OPEN"
-	}
-	if behaviour == MOVING {
+	case MOVING:
 		return "MOVING"
 	}
-	return "UNKNown"
+	return "UNKNOWN"
 }
 
 func Ed_toString(dir Direction_t) string {
-	if dir == DIR_UP {
+	switch(dir){
+	case DIR_UP:
 		return "DIR_UP"
-	}
-	if dir == DIR_DOWN {
+	case DIR_DOWN:
 		return "DIR_DOWN"
-	}
-	if dir == DIR_STOP {
+	case DIR_STOP:
 		return "DIR_STOP"
 	}
 	return "UNDEFINED"

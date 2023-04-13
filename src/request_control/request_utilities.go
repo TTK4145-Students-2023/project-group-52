@@ -4,22 +4,22 @@ import (
 	. "project/types"
 )
 
-func shouldAcceptMessage(local_request Request_t, message_request Request_t) bool {
-	if message_request.Count < local_request.Count {
+func shouldAcceptRequest(localRequest Request_t, messageRequest Request_t) bool {
+	if messageRequest.Count < localRequest.Count {
 		return false
 	}
-	if message_request.Count > local_request.Count {
+	if messageRequest.Count > localRequest.Count {
 		return true
 	}
-	
-	if message_request.State == local_request.State && is_subset(message_request.AwareList, local_request.AwareList) {
+
+	if messageRequest.State == localRequest.State && isSubset(messageRequest.AwareList, localRequest.AwareList) {
 		// no new info
 		return false
 	}
 
-	switch local_request.State {
+	switch localRequest.State {
 	case COMPLETED:
-		switch message_request.State {
+		switch messageRequest.State {
 		case COMPLETED:
 			return true
 		case NEW:
@@ -28,7 +28,7 @@ func shouldAcceptMessage(local_request Request_t, message_request Request_t) boo
 			return true
 		}
 	case NEW:
-		switch message_request.State {
+		switch messageRequest.State {
 		case COMPLETED:
 			return false
 		case NEW:
@@ -37,7 +37,7 @@ func shouldAcceptMessage(local_request Request_t, message_request Request_t) boo
 			return true
 		}
 	case ASSIGNED:
-		switch message_request.State {
+		switch messageRequest.State {
 		case COMPLETED:
 			return false
 		case NEW:
@@ -50,7 +50,7 @@ func shouldAcceptMessage(local_request Request_t, message_request Request_t) boo
 	return false
 }
 
-func is_subset(subset []string, superset []string) bool {
+func isSubset(subset []string, superset []string) bool {
 	checkset := make(map[string]bool)
 	for _, element := range subset {
 		checkset[element] = true
@@ -62,8 +62,6 @@ func is_subset(subset []string, superset []string) bool {
 	}
 	return len(checkset) == 0 //this implies that set is subset of superset
 }
-
-
 
 func addToAwareList(AwareList []string, id string) []string {
 	for i := range AwareList {

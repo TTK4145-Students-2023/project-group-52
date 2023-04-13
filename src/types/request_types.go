@@ -22,7 +22,7 @@ type ElevatorInfo_t struct {
 }
 
 type NetworkMessage_t struct {
-	Sender_id          string
+	SenderID           string
 	Available          bool
 	Behaviour          Behaviour_t
 	Direction          Direction_t
