@@ -29,7 +29,7 @@ type Elevator_t struct {
 	Behaviour Behaviour_t
 }
 
-type ElevatorSharedState_t struct {
+type ElevatorSharedInfo_t struct {
 	Mutex     sync.RWMutex
 	Available bool
 	Behaviour Behaviour_t

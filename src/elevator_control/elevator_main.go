@@ -2,7 +2,7 @@ package elevator_control
 
 import (
 	req "project/elevator_control/local_requests"
-	"project/hardware"
+	elevio "project/hardware"
 	. "project/types"
 	"time"
 	"project/music"
@@ -11,26 +11,24 @@ import (
 const DOOR_TIMEOUT_SEC = 3
 const MOBILITY_TIMOEUT_SEC = 4
 
-var shared_state ElevatorSharedState_t
-
 func RunElevatorControl(
 	requestsCh <-chan [N_FLOORS][N_BUTTONS]bool,
 	completedRequestCh chan<- ButtonEvent_t,
 ) {
-	drv_Floors := make(chan int)
-	drv_obstr := make(chan bool)
+	floorSensorCh := make(chan int)
+	obstructionSwitCh := make(chan bool)
 
-	go elevio.PollFloorSensor(drv_Floors)
-	go elevio.PollObstructionSwitch(drv_obstr)
+	go elevio.PollFloorSensor(floorSensorCh)
+	go elevio.PollObstructionSwitch(obstructionSwitCh)
 
-	elevator := elevatorInit(drv_Floors)
-	updateElevatorState(elevator)
+	elevator := elevatorInit(floorSensorCh)
+	updateElevatorInfo(elevator)
 	setElevatorAvailability(true)
 
-	door_timeout := time.NewTimer(0)
-	timerKill(door_timeout)
-	mobility_timeout := time.NewTimer(0)
-	timerKill(mobility_timeout)
+	doorTimeout := time.NewTimer(0)
+	timerKill(doorTimeout)
+	mobilityTimeout := time.NewTimer(0)
+	timerKill(mobilityTimeout)
 
 	musicEnabaleCh := make(chan bool)
 	go music.MusicPlayer(musicEnabaleCh)
@@ -40,44 +38,70 @@ func RunElevatorControl(
 		case requests := <-requestsCh:
 			elevator.Requests = requests
 
-			switch elevator.Behaviour {
-			case IDLE:
-				elevator.Direction, elevator.Behaviour = req.ChooseNewDirectionAndBehavior(elevator)
-
-				switch elevator.Behaviour {
-				case DOOR_OPEN:
-					elevio.SetDoorOpenLamp(true)
-					handleObstruction(door_timeout)
-				case MOVING:
-					timerRestart(mobility_timeout, MOBILITY_TIMOEUT_SEC)
-					elevio.SetMotorDirection(directionConverter(elevator.Direction))
-					musicEnabaleCh <- true
-				}
+			if elevator.Behaviour != IDLE {
+				break
 			}
-			updateElevatorState(elevator)
-		case newFloor := <-drv_Floors:
-			timerRestart(mobility_timeout, MOBILITY_TIMOEUT_SEC)
+
+			elevator.Direction, elevator.Behaviour = req.ChooseNewDirectionAndBehavior(elevator)
+
+			switch elevator.Behaviour {
+			case DOOR_OPEN:
+				elevio.SetDoorOpenLamp(true)
+
+				if elevio.IsObstruction() {
+					setElevatorAvailability(false)
+				} else {
+					timerRestart(doorTimeout, DOOR_TIMEOUT_SEC)
+				}
+			case MOVING:
+				timerRestart(mobilityTimeout, MOBILITY_TIMOEUT_SEC)
+				elevio.SetMotorDirection(directionConverter(elevator.Direction))
+        musicEnabaleCh <- true
+			}
+
+			updateElevatorInfo(elevator)
+
+		case elevator.Floor = <-floorSensorCh:
+			if elevator.Behaviour != MOVING {
+				break
+			}
+
+			timerRestart(mobilityTimeout, MOBILITY_TIMOEUT_SEC)
 			setElevatorAvailability(true)
 
-			elevator.Floor = newFloor
 			elevio.SetFloorIndicator(elevator.Floor)
 
-			if elevator.Behaviour == MOVING && req.ShouldStop(elevator) {
-				timerKill(mobility_timeout)
+			if req.ShouldStop(elevator) {
+				timerKill(mobilityTimeout)
 
 				elevio.SetMotorDirection(MD_Stop)
 				musicEnabaleCh <- false
 
-				if req.ShouldClearCab(elevator) || req.ShouldClearUp(elevator) || req.ShouldClearDown(elevator) {
-					elevio.SetDoorOpenLamp(true)
-					elevator.Behaviour = DOOR_OPEN
-					handleObstruction(door_timeout)
+				if req.ShouldClearUp(elevator) {
+					elevator.Direction = DIR_UP
+				} else if req.ShouldClearDown(elevator) {
+					elevator.Direction = DIR_DOWN
+				} else if req.ShouldClearCab(elevator) {
+					// no need to update direction
 				} else {
 					elevator.Behaviour = IDLE
+					updateElevatorInfo(elevator)
+					break
+				}
+
+				elevio.SetDoorOpenLamp(true)
+				elevator.Behaviour = DOOR_OPEN
+
+				if elevio.IsObstruction() {
+					setElevatorAvailability(false)
+				} else {
+					timerRestart(doorTimeout, DOOR_TIMEOUT_SEC)
 				}
 			}
-			updateElevatorState(elevator)
-		case <-door_timeout.C:
+
+			updateElevatorInfo(elevator)
+
+		case <-doorTimeout.C:
 			if elevator.Behaviour != DOOR_OPEN {
 				break
 			}
@@ -98,31 +122,32 @@ func RunElevatorControl(
 
 			switch elevator.Behaviour {
 			case DOOR_OPEN:
-				handleObstruction(door_timeout)
+				timerRestart(doorTimeout, DOOR_TIMEOUT_SEC)
 			case IDLE:
 				elevio.SetDoorOpenLamp(false)
 			case MOVING:
 				elevio.SetDoorOpenLamp(false)
-				timerRestart(mobility_timeout, MOBILITY_TIMOEUT_SEC)
+				timerRestart(mobilityTimeout, MOBILITY_TIMOEUT_SEC)
 				elevio.SetMotorDirection(directionConverter(elevator.Direction))
 				musicEnabaleCh <- true
 			}
-			updateElevatorState(elevator)
 
-		case isObstructed := <-drv_obstr:
+			updateElevatorInfo(elevator)
+
+		case isObstructed := <-obstructionSwitCh:
 			if elevator.Behaviour != DOOR_OPEN {
 				break
 			}
 
 			if isObstructed {
 				setElevatorAvailability(false)
-				timerKill(door_timeout)
+				timerKill(doorTimeout)
 			} else {
 				setElevatorAvailability(true)
-				timerRestart(door_timeout, DOOR_TIMEOUT_SEC)
+				timerRestart(doorTimeout, DOOR_TIMEOUT_SEC)
 			}
-		case <-mobility_timeout.C:
-			println("\nMOBILITY TIMEOUT\n")
+
+		case <-mobilityTimeout.C:
 			setElevatorAvailability(false)
 		}
 	}

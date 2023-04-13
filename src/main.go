@@ -7,7 +7,6 @@ Anders Mørk, Erlend Dahle, Filip Strømstad
 package main
 
 import (
-	//"project/single-elevator/elevio"
 	"flag"
 	"project/elevator_control"
 	"project/request_control"
@@ -16,15 +15,16 @@ import (
 )
 
 func main() {
-	// Our id can be anything. Here we pass it on the command line, using
-	//  `go run main.go -id=our_id`
-	var local_id string
+	// program needs ID to run, example:
+	// go run main.go -id=1
+
+	var localID string
 	var elevatorPort string
-	flag.StringVar(&local_id, "id", "", "id of this peer")
+	flag.StringVar(&localID, "id", "", "id of this peer")
 	flag.StringVar(&elevatorPort, "elevatorPort", "15657", "port for elevator connection")
 	flag.Parse()
 
-	if local_id == "" {
+	if localID == "" {
 		println("-id not provided")
 		return
 	}
@@ -35,7 +35,7 @@ func main() {
 	completedRequestCh := make(chan ButtonEvent_t)
 
 	go elevator_control.RunElevatorControl(requestsCh, completedRequestCh)
-	go request_control.RunRequestControl(local_id, requestsCh, completedRequestCh)
+	go request_control.RunRequestControl(localID, requestsCh, completedRequestCh)
 
 	select {} //keeps main from exiting without using CPU power
 }

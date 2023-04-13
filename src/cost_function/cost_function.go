@@ -24,7 +24,7 @@ func RequestDistributor(
 	allCabRequests map[string][N_FLOORS]Request_t,
 	latestInfoElevators map[string]ElevatorInfo_t,
 	peerList []string,
-	local_id string,
+	localID string,
 ) [N_FLOORS][N_BUTTONS]bool {
 
 	hraExecutablePath := "hall_request_assigner"
@@ -41,8 +41,8 @@ func RequestDistributor(
 	inputStates := map[string]HRAElevState{}
 
 	for id, cabRequests := range allCabRequests {
-		elevatorInfo, ok := latestInfoElevators[id]
-		if !ok {
+		elevatorInfo, exists := latestInfoElevators[id]
+		if !exists {
 			continue
 		}
 
@@ -50,7 +50,7 @@ func RequestDistributor(
 			continue
 		}
 
-		if (!sliceContains(peerList, id) && id != local_id){
+		if !sliceContains(peerList, id) && id != localID {
 			continue
 		}
 
@@ -98,7 +98,7 @@ func RequestDistributor(
 		return [N_FLOORS][N_BUTTONS]bool{}
 	}
 
-	return (*output)[local_id]
+	return (*output)[localID]
 }
 
 func behaviourToString(b Behaviour_t) string {
@@ -125,9 +125,9 @@ func directionToString(d Direction_t) string {
 	return "stop"
 }
 
-func sliceContains(slice []string, elem string) bool{
+func sliceContains(slice []string, elem string) bool {
 	for _, element := range slice {
-		if element == elem{
+		if element == elem {
 			return true
 		}
 	}
