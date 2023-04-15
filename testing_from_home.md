@@ -1,4 +1,16 @@
-﻿Testing from home
+﻿## Interaction between main modules
+```
+|=====================|                           |=====================|   
+|                     |                           |                     |
+| Elevator Control    | <----------- requestCh -- | Request Control     |
+|                     |                           |                     |
+|                     | -- completedRequestCh --> |                     |
+|                     |                           |                     |
+|                     | -- sharedInfo ----------> |                     |
+|=====================|                           |=====================|
+```
+
+Testing from home
 =================
 
 Setting up networks on a single computer
