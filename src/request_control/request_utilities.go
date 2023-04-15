@@ -46,7 +46,7 @@ func shouldAcceptRequest(localRequest Request_t, messageRequest Request_t) bool 
 			return true
 		}
 	}
-	print("shouldAcceptMessage() did not return")
+	print("shouldAcceptRequest() did not return")
 	return false
 }
 
