@@ -31,8 +31,7 @@ func RunElevatorControl(
 
 	for {
 		select {
-		case requests := <-requestsCh:
-			elevator.Requests = requests
+		case elevator.Requests = <-requestsCh:
 
 			if elevator.Behaviour != IDLE {
 				break
