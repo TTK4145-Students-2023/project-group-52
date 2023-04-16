@@ -12,10 +12,10 @@ import (
 )
 
 const (
-	PEER_PORT          = 30052
-	MSG_PORT           = 30051
-	SEND_TIME_MS       = 200
-	DISTRIBUTE_TIME_MS = 1000
+	PEER_PORT               = 30052
+	MSG_PORT                = 30051
+	SEND_TIME_MS            = 200
+	ASSIGN_REQUESTS_TIME_MS = 1000
 )
 
 func RunRequestControl(
@@ -36,7 +36,7 @@ func RunRequestControl(
 	go bcast.Receiver(MSG_PORT, messageRx)
 
 	sendTicker := time.NewTicker(SEND_TIME_MS * time.Millisecond)
-	assignRequestTicker := time.NewTicker(DISTRIBUTE_TIME_MS * time.Millisecond)
+	assignRequestTicker := time.NewTicker(ASSIGN_REQUESTS_TIME_MS * time.Millisecond)
 
 	peerList := []string{}
 	connectedToNetwork := false
