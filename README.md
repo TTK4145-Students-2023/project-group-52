@@ -2,7 +2,7 @@
 ```
 |=====================|                           |=====================|   
 |                     |                           |                     |
-| Elevator Control    | <----------- requestCh -- | Request Control     |
+| Elevator Control    | <---------- requestsCh -- | Request Control     |
 |                     |                           |                     |
 |                     | -- completedRequestCh --> |                     |
 |                     |                           |                     |
