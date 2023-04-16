@@ -1,21 +1,21 @@
 package request_control
 
 import (
-	"project/cost_function"
 	printing "project/debug_printing"
 	elev "project/elevator_control"
 	elevio "project/hardware"
 	"project/network/bcast"
 	"project/network/peers"
+	"project/request_control/request_assigner"
 	. "project/types"
 	"time"
 )
 
 const (
-	PEER_PORT          = 30052
-	MSG_PORT           = 30051
-	SEND_TIME_MS       = 200
-	DISTRIBUTE_TIME_MS = 1000
+	PEER_PORT               = 30052
+	MSG_PORT                = 30051
+	SEND_TIME_MS            = 200
+	ASSIGN_REQUESTS_TIME_MS = 1000
 )
 
 func RunRequestControl(
@@ -36,7 +36,7 @@ func RunRequestControl(
 	go bcast.Receiver(MSG_PORT, messageRx)
 
 	sendTicker := time.NewTicker(SEND_TIME_MS * time.Millisecond)
-	distributeTicker := time.NewTicker(DISTRIBUTE_TIME_MS * time.Millisecond)
+	assignRequestTicker := time.NewTicker(ASSIGN_REQUESTS_TIME_MS * time.Millisecond)
 
 	peerList := []string{}
 	connectedToNetwork := false
@@ -128,9 +128,9 @@ func RunRequestControl(
 				messageTx <- newMessage
 			}
 
-		case <-distributeTicker.C:
+		case <-assignRequestTicker.C:
 			select {
-			case requestsCh <- cost_function.RequestDistributor(hallRequests, allCabRequests, latestInfoElevators, peerList, localID):
+			case requestsCh <- request_assigner.RequestAssigner(hallRequests, allCabRequests, latestInfoElevators, peerList, localID):
 			default:
 				// Avoid deadlock
 			}
@@ -153,7 +153,7 @@ func RunRequestControl(
 			}
 
 			if !connectedToNetwork {
-				//avoid race-conditions with peer messages
+				// Not accepting messages until we are on the peerlist
 				break
 			}
 

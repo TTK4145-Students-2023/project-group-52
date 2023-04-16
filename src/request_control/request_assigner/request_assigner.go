@@ -1,4 +1,4 @@
-package cost_function
+package request_assigner
 
 import (
 	"encoding/json"
@@ -19,7 +19,7 @@ type HRAInput struct {
 	States       map[string]HRAElevState `json:"states"`
 }
 
-func RequestDistributor(
+func RequestAssigner(
 	hallRequests [N_FLOORS][N_HALL_BUTTONS]Request_t,
 	allCabRequests map[string][N_FLOORS]Request_t,
 	latestInfoElevators map[string]ElevatorInfo_t,
